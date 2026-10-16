@@ -2,6 +2,15 @@
 // Solo los correos de PERMITIDOS pueden entrar. Esta lista es para que la
 // página muestre un aviso claro; quien de verdad bloquea el acceso son las
 // reglas de Firestore (ver firestore.rules), que usan la misma lista.
+// La página vive en el hosting de Firebase, en el mismo dominio que el inicio de
+// sesión de Google (así funciona en iPhone). Las direcciones viejas mandan aquí.
+(function(){
+  const CASA = 'calendario-de-pagos-56e44.firebaseapp.com';
+  const h = location.hostname;
+  if(h.endsWith('github.io') || h.endsWith('.web.app')){
+    location.replace('https://' + CASA + location.pathname.replace(/^\/Calendario-de-pagos/, '') + location.search + location.hash);
+  }
+})();
 (function(){
   "use strict";
   const PERMITIDOS = [
@@ -85,7 +94,7 @@
         } else if(code === 'auth/unauthorized-domain'){
           setMsg('Esta dirección todavía no está autorizada en Firebase.');
         } else if(code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request'){
-          setMsg('No se pudo entrar. Intenta de nuevo.');
+          setMsg('No se pudo entrar con Google. Prueba con "recibe un enlace en tu correo".');
         } else {
           setMsg('');
         }
@@ -124,7 +133,8 @@
 
     salir.addEventListener('click', ()=>{ auth.signOut().then(()=> location.reload()); });
 
-    auth.getRedirectResult().catch(()=>{});
+    // Si la vuelta de Google falla (pasa en algunos teléfonos), se explica qué hacer en vez de dejar la pantalla en blanco.
+    auth.getRedirectResult().catch(()=> setMsg('No se pudo terminar de entrar con Google. Intenta otra vez, o usa "recibe un enlace en tu correo".'));
     auth.onAuthStateChanged(user=>{
       if(permitido(user)){
         gate.hidden = true;

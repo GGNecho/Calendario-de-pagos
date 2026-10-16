@@ -1,6 +1,6 @@
 # Calendario de Pagos
 
-Páginas de Nemecio y María Fernanda, con los datos en Firebase Firestore (proyecto `calendario-de-pagos-56e44`). Se publican en https://ggnecho.github.io/Calendario-de-pagos/ y se pueden instalar en el teléfono como app.
+Páginas de Nemecio y María Fernanda, con los datos en Firebase Firestore (proyecto `calendario-de-pagos-56e44`). Se publican en https://calendario-de-pagos-56e44.firebaseapp.com (hosting de Firebase) y se pueden instalar en el teléfono como app.
 
 - `tablero.html`: el tablero de los dos: notas pegadas en un corcho, la lista del súper, los tickets del mes y un pizarrón con lo que hay que pagar.
 - `index.html`: Calendario de Pagos (quincena y mes). Al marcar un pago como hecho, se guarda en el historial.

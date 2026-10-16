@@ -1,5 +1,12 @@
 {
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": ["firebase.json", "firestore.rules", "CLAUDE.md", "README.md", ".git/**", ".claude/**", "**/.*", "**/node_modules/**"],
+    "headers": [
+      { "source": "sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+    ]
   }
 }

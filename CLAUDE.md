@@ -1,12 +1,12 @@
 # Calendario de Pagos
 
-Páginas privadas de Nemecio y María Fernanda para llevar pagos, gastos compartidos, notas e historial. Los datos viven en Firebase Firestore (proyecto `calendario-de-pagos-56e44`) y las páginas se publican con GitHub Pages en `https://ggnecho.github.io/Calendario-de-pagos/`.
+Páginas privadas de Nemecio y María Fernanda para llevar pagos, gastos compartidos, notas e historial. Los datos viven en Firebase Firestore (proyecto `calendario-de-pagos-56e44`) y las páginas se publican en el hosting de Firebase: `https://calendario-de-pagos-56e44.firebaseapp.com` (mismo dominio que el inicio de sesión de Google, así funciona en iPhone). GitHub guarda el código; la dirección vieja de GitHub Pages solo redirige a la nueva (ver el inicio de `acceso.js`).
 
 ## Cómo trabajar aquí
 
 - Todo en español: textos de la página, comentarios del código, mensajes de commit y respuestas al usuario.
 - El usuario no es programador. Explica en palabras sencillas qué cambia en la página, no en el código.
-- Subir a GitHub = publicar. Cada `git push` cambia la página que ven los dos. Pide confirmación antes de hacer push.
+- Publicar = `git push` (guardar el código) y luego `firebase.cmd deploy --only hosting` (lo que ven los dos). Pide confirmación antes de publicar. Revisa que `firebase.json` siga ignorando `.git/**`, `.claude/**` y los archivos de notas: todo lo demás de la carpeta queda público.
 - La rama principal es `main` y es la que se publica. Trabaja y sube a `main`, salvo que el usuario pida otra cosa; no crees ramas nuevas sin preguntar.
 - Git está en `C:\Program Files\Git\cmd\git.exe`; si `git` no está en el PATH de la sesión, usa esa ruta.
 - Los mensajes de commit siguen el estilo del historial: una línea en español, en presente, que diga qué cambia para el usuario (por ejemplo "Agrega notas, historial y menú").
