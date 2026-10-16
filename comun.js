@@ -55,160 +55,105 @@
   }
   let mesDelTema = new Date().getMonth();
 
-  // ---------- Imágenes del mes ----------
-  // Se guardan en Firestore (no en GitHub), así que solo las ven quienes entran:
-  //   themes/m1…m12        → {v:{ranura:fecha}, color:{ranura:{h,s}}, usarColores, foco}
-  //   themes/m1_portada…   → {data: imagen ya comprimida como data URI}
-  // La del mes actual se guarda también en este dispositivo para que salga al instante.
-  const RANURAS = ['portada','fondo','mascota'];
-  const temas = {};          // mes → {meta, imgs:{portada, fondo, mascota}}
-  let temaListo = false;     // ya hay sesión y se puede leer Firestore
-  const CACHE_TEMA = 'tema-mes-v1';
-  try{
-    const c = JSON.parse(localStorage.getItem(CACHE_TEMA) || 'null');
-    if(c && c.mes === new Date().getMonth()) temas[c.mes] = {meta:c.meta, imgs:c.imgs || {}};
-  }catch(_){}
-  function guardarCacheTema(mes){
-    try{
-      const t = temas[mes];
-      if(t) localStorage.setItem(CACHE_TEMA, JSON.stringify({mes, meta:t.meta, imgs:t.imgs}));
-    }catch(_){ try{ localStorage.removeItem(CACHE_TEMA); }catch(__){} }
-  }
-
-  // Colores: los de las imágenes si se pidió, si no los fijos del mes.
-  function paletaDe(tema, t, dark){
-    const m = t && t.meta;
-    const c = m && m.usarColores !== false && m.color && (m.color.portada || m.color.fondo || m.color.mascota);
-    if(c){
-      const s = Math.max(45, Math.min(70, c.s));
-      return dark ? {accent:`hsl(${c.h} ${s}% 72%)`, ink:`hsl(${c.h} 45% 15%)`}
-                  : {accent:`hsl(${c.h} ${s}% 36%)`, ink:`hsl(${c.h} 70% 95%)`};
+  // ---------- Adornos del mes: una guirnalda dibujada arriba de cada página ----------
+  const ADORNOS = [
+    {forma:'copo',     colores:['#8FC1E3','#B9D7EE','#E8C55B']},           // enero
+    {forma:'corazon',  colores:['#D6336C','#F783AC','#C2255C']},           // febrero
+    {forma:'hoja',     colores:['#5C9E45','#8CC152','#3E7D32']},           // marzo
+    {forma:'flor',     colores:['#B197FC','#F783AC','#9775FA']},           // abril
+    {forma:'flor',     colores:['#F06595','#E64980','#FAA2C1']},           // mayo
+    {forma:'sol',      colores:['#FCC419','#FD7E14']},                     // junio
+    {forma:'banderin', colores:['#1098AD','#3BC9DB','#FFD43B','#74C0FC']}, // julio
+    {forma:'girasol',  colores:['#FAB005','#F59F00']},                     // agosto
+    {forma:'banderin', colores:['#2B8A3E','#F1F3F5','#C92A2A']},           // septiembre
+    {forma:'calabaza', colores:['#F76707','#FD7E14','#E8590C']},           // octubre
+    {forma:'papel',    colores:['#E64980','#F76707','#7048E8','#2F9E44','#FAB005','#1C7ED6']}, // noviembre
+    {forma:'foco',     colores:['#FA5252','#FCC419','#40C057','#339AF0','#BE4BDB']},           // diciembre
+  ];
+  // Cada forma cuelga del punto (x, y) del hilo.
+  function figura(f, c, x, y){
+    const r = (n)=> Math.round(n*10)/10;
+    switch(f){
+      case 'banderin': return `<path d="M${r(x-15)} ${y}H${r(x+15)}L${x} ${y+30}Z" fill="${c}" stroke="rgba(0,0,0,.12)"/>`;
+      case 'papel': return `<path fill-rule="evenodd" fill="${c}" d="M${x-17} ${y}h34v38l-5.7-4-5.7 4-5.7-4-5.7 4-5.7-4-5.7 4Z
+        M${x} ${y+9}l6 7-6 7-6-7Z M${x-11} ${y+5}h5v5h-5Z M${x+6} ${y+5}h5v5h-5Z M${x-11} ${y+24}h5v5h-5Z M${x+6} ${y+24}h5v5h-5Z"/>`;
+      case 'corazon': return `<path d="M${x} ${y}v7" stroke="rgba(0,0,0,.25)"/><path d="M${x} ${y+31}C${x-22} ${y+18} ${x-13} ${y+2} ${x} ${y+13}C${x+13} ${y+2} ${x+22} ${y+18} ${x} ${y+31}Z" fill="${c}"/>`;
+      case 'foco': return `<circle cx="${x}" cy="${y+19}" r="15" fill="${c}" opacity=".22"/><rect x="${x-4}" y="${y}" width="8" height="7" rx="1.5" fill="#6c6f73"/><ellipse cx="${x}" cy="${y+18}" rx="7.5" ry="11" fill="${c}"/>`;
+      case 'calabaza': return `<path d="M${x} ${y}v5" stroke="#5c3d1e" stroke-width="3"/><ellipse cx="${x-6}" cy="${y+18}" rx="8" ry="10" fill="${c}"/><ellipse cx="${x+6}" cy="${y+18}" rx="8" ry="10" fill="${c}"/><ellipse cx="${x}" cy="${y+18}" rx="7" ry="11" fill="${c}" stroke="rgba(0,0,0,.15)"/>`;
+      case 'copo': { let s = `<path d="M${x} ${y}v5" stroke="rgba(0,0,0,.25)"/>`;
+        for(let a=0; a<180; a+=60){ const rad = a*Math.PI/180, dx = r(Math.cos(rad)*12), dy = r(Math.sin(rad)*12);
+          s += `<path d="M${r(x-dx)} ${r(y+17-dy)}L${r(x+dx)} ${r(y+17+dy)}" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`; }
+        return s + `<circle cx="${x}" cy="${y+17}" r="3" fill="${c}"/>`; }
+      case 'hoja': return `<path d="M${x} ${y}C${x+14} ${y+10} ${x+10} ${y+26} ${x} ${y+32}C${x-10} ${y+26} ${x-14} ${y+10} ${x} ${y}Z" fill="${c}"/><path d="M${x} ${y+4}V${y+29}" stroke="rgba(255,255,255,.55)" stroke-width="1.5"/>`;
+      case 'flor': { let s = `<path d="M${x} ${y}v5" stroke="#3e7d32" stroke-width="2"/>`;
+        for(let k=0; k<5; k++){ const a = k*72*Math.PI/180; s += `<circle cx="${r(x+Math.cos(a)*7)}" cy="${r(y+17+Math.sin(a)*7)}" r="6" fill="${c}"/>`; }
+        return s + `<circle cx="${x}" cy="${y+17}" r="4.2" fill="#FFD43B"/>`; }
+      case 'sol': { let s = '';
+        for(let k=0; k<8; k++){ const a = k*45*Math.PI/180;
+          s += `<path d="M${r(x+Math.cos(a)*12)} ${r(y+17+Math.sin(a)*12)}L${r(x+Math.cos(a)*17)} ${r(y+17+Math.sin(a)*17)}" stroke="#FD7E14" stroke-width="2.5" stroke-linecap="round"/>`; }
+        return `<path d="M${x} ${y}v3" stroke="rgba(0,0,0,.25)"/>` + s + `<circle cx="${x}" cy="${y+17}" r="9.5" fill="${c}"/>`; }
+      case 'girasol': { let s = `<path d="M${x} ${y}v4" stroke="#3e7d32" stroke-width="2"/>`;
+        for(let k=0; k<10; k++){ s += `<ellipse cx="${x}" cy="${y+8}" rx="3.6" ry="7" fill="${c}" transform="rotate(${k*36} ${x} ${y+17})"/>`; }
+        return s + `<circle cx="${x}" cy="${y+17}" r="5.5" fill="#7a4b1c"/>`; }
     }
-    return dark ? tema.dark : tema.light;
+    return '';
+  }
+  // Tres "columpios" de hilo de lado a lado, con seis adornos colgando en cada uno.
+  function guirnaldaSVG(mes){
+    const a = ADORNOS[mes];
+    let hilo = '', cosas = '', i = 0;
+    for(let k=0; k<3; k++){
+      const x0 = k*400, x2 = x0+400, xc = x0+200, y0 = 8, yc = 56;
+      hilo += `<path d="M${x0} ${y0}Q${xc} ${yc} ${x2} ${y0}" fill="none" stroke="var(--ink-faint)" stroke-width="1.6"/><circle cx="${x0}" cy="${y0}" r="3.5" fill="var(--ink-soft)"/>`;
+      for(let t=0.13; t<0.9; t+=0.148){
+        const x = Math.round((1-t)*(1-t)*x0 + 2*(1-t)*t*xc + t*t*x2);
+        const y = Math.round((1-t)*(1-t)*y0 + 2*(1-t)*t*yc + t*t*y0);
+        const giro = ((i*37) % 13) - 6;
+        cosas += `<g transform="rotate(${giro} ${x} ${y})">${figura(a.forma, a.colores[i % a.colores.length], x, y)}</g>`;
+        i++;
+      }
+    }
+    return `<svg viewBox="0 0 1200 92" preserveAspectRatio="xMidYMin slice" aria-hidden="true" focusable="false">${hilo}<circle cx="1200" cy="8" r="3.5" fill="var(--ink-soft)"/>${cosas}</svg>`;
   }
 
-  // Aplica el tema de un mes (por defecto el actual). El Calendario lo llama al
-  // moverse entre meses para que el color y las imágenes sigan al mes que se ve.
+  // Aplica el tema de un mes (por defecto el actual): color de acento, fondo de emojis,
+  // saludo y guirnalda. El Calendario lo llama al moverse entre meses.
   function aplicarTema(mes){
     if(mes !== undefined) mesDelTema = mes;
     const tema = TEMAS_DEL_MES[mesDelTema];
-    const t = temas[mesDelTema];
-    const imgs = (t && t.imgs) || {};
     const dark = oscuro();
-    const c = paletaDe(tema, t, dark);
+    const c = dark ? tema.dark : tema.light;
     const root = document.documentElement.style;
     root.setProperty('--accent', c.accent);
     root.setProperty('--accent-ink', c.ink);
-    if(imgs.fondo){
-      // El patrón queda tenue con una capa del color del papel encima (sin capas extra que pesen al dibujar).
-      const velo = dark ? 'rgba(14,19,17,.9)' : 'rgba(243,244,239,.88)';
-      root.setProperty('--bg-image', `linear-gradient(${velo}, ${velo}), url("${imgs.fondo}")`);
-      root.setProperty('--bg-size', 'auto, 220px');
-    } else {
-      root.setProperty('--bg-image', fondoSVG(tema, dark));
-      root.removeProperty('--bg-size');
-    }
-    const linea = document.querySelector('.tema-mes span');
+    root.setProperty('--bg-image', fondoSVG(tema, dark));
+    const linea = document.querySelector('.tema-mes');
     if(linea) linea.textContent = 'Tema de ' + MESES[mesDelTema] + ': ' + tema.name + ' ' + tema.emoji;
-    const portada = document.querySelector('.tema-portada');
-    if(portada){
-      portada.hidden = !imgs.portada;
-      if(imgs.portada){
-        portada.style.backgroundImage = `url("${imgs.portada}")`;
-        portada.style.backgroundPosition = 'center ' + ((t.meta && t.meta.foco != null) ? t.meta.foco : 40) + '%';
-      }
-    }
-    if(document.body) document.body.classList.toggle('con-portada', !!imgs.portada);
-    const masc = document.querySelector('.tema-mascota');
-    if(masc){
-      masc.hidden = !imgs.mascota;
-      if(imgs.mascota && masc.getAttribute('src') !== imgs.mascota) masc.src = imgs.mascota;
-      const hero = masc.closest('.hero');
-      if(hero) hero.classList.toggle('con-mascota', !!imgs.mascota);
-    }
-    if(temaListo && !t) cargarTema(mesDelTema);
+    const g = document.querySelector('.guirnalda');
+    if(g && g.dataset.mes !== String(mesDelTema)){ g.innerHTML = guirnaldaSVG(mesDelTema); g.dataset.mes = String(mesDelTema); }
   }
-
-  const cargando = {};
-  function cargarTema(mes){
-    if(cargando[mes]) return cargando[mes];
-    cargando[mes] = (async ()=>{
-      try{
-        const col = conectar().collection('themes');
-        const snap = await col.doc('m'+(mes+1)).get();
-        const meta = snap.exists ? snap.data() : null;
-        const antes = temas[mes];
-        const imgs = {};
-        for(const r of RANURAS){
-          const v = meta && meta.v && meta.v[r];
-          if(!v) continue;
-          // Si la imagen no cambió desde la última vez, se reutiliza sin volver a bajarla.
-          if(antes && antes.meta && antes.meta.v && antes.meta.v[r] === v && antes.imgs[r]){ imgs[r] = antes.imgs[r]; continue; }
-          const d = await col.doc('m'+(mes+1)+'_'+r).get();
-          if(d.exists) imgs[r] = d.data().data;
-        }
-        temas[mes] = {meta, imgs};
-        if(mes === new Date().getMonth()) guardarCacheTema(mes);
-        if(mes === mesDelTema) aplicarTema();
-        pintarEditor();
-      }catch(_){
-        // Sin conexión o sin permiso: se queda el tema fijo del mes.
-      }finally{ delete cargando[mes]; }
-    })();
-    return cargando[mes];
-  }
-
   aplicarTema();
   if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=> aplicarTema());
 
-  // El saludo del mes va debajo del título; la portada, arriba; el personaje, junto al título.
+  // El saludo del mes va debajo del título; la guirnalda, arriba de todo.
   function pintarSaludo(){
     const h1 = document.querySelector('.hero h1');
     if(!h1 || document.querySelector('.tema-mes')) return;
     const p = document.createElement('p');
     p.className = 'tema-mes';
-    p.innerHTML = '<span></span><button type="button" class="btn-link">Cambiar imágenes</button>';
-    p.querySelector('button').addEventListener('click', abrirEditorTema);
     h1.insertAdjacentElement('afterend', p);
     const hero = h1.closest('.hero');
     if(hero){
-      const portada = document.createElement('div');
-      portada.className = 'tema-portada';
-      portada.hidden = true;
-      portada.setAttribute('aria-hidden', 'true');
-      hero.parentNode.insertBefore(portada, hero);
-      const masc = document.createElement('img');
-      masc.className = 'tema-mascota';
-      masc.alt = '';
-      masc.hidden = true;
-      hero.appendChild(masc);
+      const g = document.createElement('div');
+      g.className = 'guirnalda';
+      hero.parentNode.insertBefore(g, hero);
     }
     aplicarTema();
   }
   if(document.body) pintarSaludo(); else document.addEventListener('DOMContentLoaded', pintarSaludo);
 
-  // Al entrar con un correo permitido, se bajan las imágenes del mes.
-  document.addEventListener('DOMContentLoaded', ()=>{
-    if(typeof firebase === 'undefined') return;
-    try{
-      conectar();
-      firebase.auth().onAuthStateChanged(u=>{
-        if(!u || temaListo) return;
-        temaListo = true;
-        cargarTema(mesDelTema);
-      });
-    }catch(_){}
-  });
-
-  // ---------- Preparar una imagen antes de guardarla ----------
+  // ---------- Preparar una foto (ticket o documento) antes de guardarla ----------
   function lienzo(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
-  function escalar(c, max){
-    const k = Math.min(1, max / Math.max(c.width, c.height));
-    if(k >= 1) return c;
-    const out = lienzo(Math.round(c.width*k), Math.round(c.height*k));
-    out.getContext('2d').drawImage(c, 0, 0, out.width, out.height);
-    return out;
-  }
   function abrirArchivo(file){
     return new Promise((ok, mal)=>{
       const url = URL.createObjectURL(file);
@@ -218,219 +163,24 @@
       img.src = url;
     });
   }
-  // Si las cuatro esquinas son del mismo color, ese es el fondo: se vuelve
-  // transparente lo que toca la orilla y se recorta al dibujo.
-  function quitarFondo(c){
-    const w = c.width, h = c.height, x = c.getContext('2d');
-    const im = x.getImageData(0, 0, w, h), d = im.data;
-    const esquinas = [0, w-1, (h-1)*w, h*w-1].map(p=>p*4);
-    const bg = [0,1,2].map(j=> esquinas.reduce((s,i)=> s + d[i+j], 0) / 4);
-    const parecido = i => { const a = d[i]-bg[0], b = d[i+1]-bg[1], e = d[i+2]-bg[2]; return a*a + b*b + e*e < 42*42; };
-    if(!esquinas.every(parecido)) return c;
-    const visto = new Uint8Array(w*h), pila = [];
-    for(let a=0; a<w; a++) pila.push(a, (h-1)*w + a);
-    for(let b=0; b<h; b++) pila.push(b*w, b*w + w - 1);
-    while(pila.length){
-      const p = pila.pop();
-      if(visto[p]) continue;
-      visto[p] = 1;
-      if(!parecido(p*4)) continue;
-      d[p*4+3] = 0;
-      const a = p % w, b = (p - a) / w;
-      if(a > 0) pila.push(p-1);
-      if(a < w-1) pila.push(p+1);
-      if(b > 0) pila.push(p-w);
-      if(b < h-1) pila.push(p+w);
-    }
-    x.putImageData(im, 0, 0);
-    let x0 = w, y0 = h, x1 = -1, y1 = -1;
-    for(let b=0; b<h; b++) for(let a=0; a<w; a++){
-      if(d[(b*w+a)*4+3] > 0){ if(a<x0) x0=a; if(a>x1) x1=a; if(b<y0) y0=b; if(b>y1) y1=b; }
-    }
-    if(x1 < 0) return c;
-    const out = lienzo(x1-x0+1, y1-y0+1);
-    out.getContext('2d').drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
-    return out;
-  }
-  // El tono que más se repite entre los colores vivos de la imagen.
-  function colorDominante(c){
-    const s = lienzo(40, 40), x = s.getContext('2d');
-    x.drawImage(c, 0, 0, 40, 40);
-    const d = x.getImageData(0, 0, 40, 40).data;
-    const peso = new Array(24).fill(0), sat = new Array(24).fill(0);
-    for(let i=0; i<d.length; i+=4){
-      if(d[i+3] < 128) continue;
-      const r = d[i]/255, g = d[i+1]/255, b = d[i+2]/255;
-      const mx = Math.max(r,g,b), mn = Math.min(r,g,b), l = (mx+mn)/2, ch = mx-mn;
-      if(ch < 0.15 || l < 0.15 || l > 0.9) continue;
-      const sv = ch / (1 - Math.abs(2*l - 1));
-      let hh = mx===r ? ((g-b)/ch) % 6 : mx===g ? (b-r)/ch + 2 : (r-g)/ch + 4;
-      hh = (hh*60 + 360) % 360;
-      const k = Math.floor(hh/15);
-      peso[k] += sv; sat[k] += sv*sv;
-    }
-    let k = 0;
-    peso.forEach((v,i)=>{ if(v > peso[k]) k = i; });
-    if(peso[k] <= 0) return null;
-    return {h: k*15 + 7, s: Math.round(sat[k]/peso[k]*100)};
-  }
-  async function prepararImagen(file, ranura){
+  // JPEG de hasta 1600 px por lado (se lee bien un ticket) y menos de ~700 KB, porque
+  // un documento de Firestore no puede pasar de 1 MB.
+  async function prepararImagen(file){
     const img = await abrirArchivo(file);
-    const max = ranura==='portada' ? 1200 : ranura==='ticket' ? 1600 : ranura==='fondo' ? 480 : 900;
-    let c = escalar((()=>{ const t = lienzo(img.naturalWidth, img.naturalHeight); t.getContext('2d').drawImage(img, 0, 0); return t; })(), max);
-    if(ranura==='mascota') c = escalar(quitarFondo(c), 480);
-    const color = colorDominante(c);
-    let data;
-    if(ranura==='mascota'){
-      data = c.toDataURL('image/webp', 0.85);
-      if(!data.startsWith('data:image/webp')) data = c.toDataURL('image/png');
-      if(data.length > 900000) data = escalar(c, 320).toDataURL('image/png');
-    } else {
-      let q = 0.82;
-      data = c.toDataURL('image/jpeg', q);
-      while(data.length > 700000 && q > 0.4){ q -= 0.12; data = c.toDataURL('image/jpeg', q); }
-    }
+    const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = lienzo(Math.round(img.naturalWidth*k), Math.round(img.naturalHeight*k));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    let q = 0.82, data = c.toDataURL('image/jpeg', q);
+    while(data.length > 700000 && q > 0.4){ q -= 0.12; data = c.toDataURL('image/jpeg', q); }
     if(data.length > 990000) throw new Error('grande');
-    return {data, color};
-  }
-
-  // ---------- Ventana "Imágenes del mes" ----------
-  const RANURA_NOMBRE = {portada:'Portada', fondo:'Fondo', mascota:'Personaje'};
-  const RANURA_AYUDA = {
-    portada:'Va arriba de cada página. Mejor una imagen horizontal.',
-    fondo:'Se repite muy tenue detrás de todo. Ideal un patrón.',
-    mascota:'Se asoma junto al título. Si tiene un fondo de un solo color, lo quito.',
-  };
-  let editor = null, mesEditor = 0, mesAntesDeEditar = 0;
-  function estadoEditor(t){ const el = editor && editor.querySelector('#temaEstado'); if(el) el.textContent = t || ''; }
-  function metaDe(mes){
-    const t = temas[mes] || (temas[mes] = {meta:null, imgs:{}});
-    t.meta = Object.assign({usarColores:true, foco:40, v:{}, color:{}}, t.meta || {});
-    return t;
-  }
-  function guardarMeta(mes){
-    const t = metaDe(mes);
-    if(mes === new Date().getMonth()) guardarCacheTema(mes);
-    return conectar().collection('themes').doc('m'+(mes+1)).set(t.meta);
-  }
-  function pintarEditor(){
-    if(!editor || editor.hidden) return;
-    const t = temas[mesEditor], meta = (t && t.meta) || {}, imgs = (t && t.imgs) || {};
-    RANURAS.forEach(r=>{
-      const prev = editor.querySelector('.tema-prev-'+r);
-      prev.style.backgroundImage = imgs[r] ? `url("${imgs[r]}")` : 'none';
-      editor.querySelector(`[data-subir="${r}"]`).textContent = imgs[r] ? 'Cambiar' : 'Subir';
-      editor.querySelector(`[data-quitar="${r}"]`).hidden = !imgs[r];
-    });
-    editor.querySelector('#temaFocoWrap').hidden = !imgs.portada;
-    editor.querySelector('#temaFoco').value = meta.foco != null ? meta.foco : 40;
-    editor.querySelector('#temaColores').checked = meta.usarColores !== false;
-  }
-  function crearEditor(){
-    editor = document.createElement('div');
-    editor.className = 'modal-backdrop';
-    editor.hidden = true;
-    editor.innerHTML = `<div class="modal tema-editor" role="dialog" aria-modal="true" aria-labelledby="temaTitulo">
-      <h2 id="temaTitulo">Imágenes del mes</h2>
-      <div class="field"><label for="temaMes">Mes</label>
-        <select id="temaMes">${MESES.map((n,i)=>`<option value="${i}">${n[0].toUpperCase()+n.slice(1)}</option>`).join('')}</select></div>
-      ${RANURAS.map(r=>`<div class="tema-ranura">
-        <span class="tema-prev tema-prev-${r}"></span>
-        <div class="tema-info"><b>${RANURA_NOMBRE[r]}</b><span class="muted">${RANURA_AYUDA[r]}</span>
-          <span class="tema-acciones"><button type="button" class="btn btn-small" data-subir="${r}">Subir</button>
-          <button type="button" class="btn-link" data-quitar="${r}" hidden>Quitar</button></span></div>
-        <input type="file" accept="image/*" data-archivo="${r}" hidden>
-      </div>`).join('')}
-      <div class="field" id="temaFocoWrap" hidden><label for="temaFoco">Qué parte de la portada se ve (arriba ↔ abajo)</label>
-        <input type="range" id="temaFoco" min="0" max="100" step="5"></div>
-      <div class="checkline"><input type="checkbox" id="temaColores"><label for="temaColores">Usar los colores de las imágenes</label></div>
-      <p class="muted">Solo las ven ustedes dos: se guardan en su Firebase, no en GitHub.</p>
-      <p class="muted tema-estado" id="temaEstado" aria-live="polite"></p>
-      <div class="modal-actions"><button type="button" class="btn btn-primary" data-cerrar>Listo</button></div>
-    </div>`;
-    document.body.appendChild(editor);
-
-    const cerrar = ()=>{ editor.hidden = true; estadoEditor(''); aplicarTema(mesAntesDeEditar); };
-    editor.addEventListener('click', e=>{
-      if(e.target === editor || e.target.closest('[data-cerrar]')) return cerrar();
-      const sub = e.target.closest('[data-subir]');
-      if(sub) return editor.querySelector(`[data-archivo="${sub.dataset.subir}"]`).click();
-      const quitar = e.target.closest('[data-quitar]');
-      if(quitar) quitarImagen(quitar.dataset.quitar);
-    });
-    editor.querySelector('#temaMes').addEventListener('change', e=>{
-      mesEditor = Number(e.target.value);
-      aplicarTema(mesEditor);   // la página muestra el mes que se edita
-      pintarEditor();
-      if(temaListo && !temas[mesEditor]) cargarTema(mesEditor);
-    });
-    editor.querySelectorAll('[data-archivo]').forEach(input=>{
-      input.addEventListener('change', ()=>{
-        const file = input.files && input.files[0];
-        input.value = '';
-        if(file) subirImagen(input.dataset.archivo, file);
-      });
-    });
-    const foco = editor.querySelector('#temaFoco');
-    foco.addEventListener('input', ()=>{ metaDe(mesEditor).meta.foco = Number(foco.value); aplicarTema(mesEditor); });
-    foco.addEventListener('change', ()=> guardarMeta(mesEditor).catch(()=> estadoEditor('No se pudo guardar.')));
-    editor.querySelector('#temaColores').addEventListener('change', e=>{
-      metaDe(mesEditor).meta.usarColores = e.target.checked;
-      aplicarTema(mesEditor);
-      guardarMeta(mesEditor).catch(()=> estadoEditor('No se pudo guardar.'));
-    });
-  }
-  function abrirEditorTema(){
-    if(!editor) crearEditor();
-    mesAntesDeEditar = mesEditor = mesDelTema;
-    editor.querySelector('#temaMes').value = String(mesEditor);
-    editor.hidden = false;
-    estadoEditor(temaListo ? '' : 'Entra con tu cuenta para cambiar las imágenes.');
-    pintarEditor();
-  }
-  async function subirImagen(r, file){
-    if(!temaListo) return estadoEditor('Entra con tu cuenta para cambiar las imágenes.');
-    const mes = mesEditor;
-    estadoEditor('Preparando la imagen…');
-    try{
-      const res = await prepararImagen(file, r);
-      estadoEditor('Guardando…');
-      await conectar().collection('themes').doc('m'+(mes+1)+'_'+r).set({data: res.data});
-      const t = metaDe(mes);
-      t.meta.v = Object.assign({}, t.meta.v, {[r]: new Date().toISOString()});
-      t.meta.color = Object.assign({}, t.meta.color);
-      if(res.color) t.meta.color[r] = res.color; else delete t.meta.color[r];
-      t.imgs = Object.assign({}, t.imgs, {[r]: res.data});
-      await guardarMeta(mes);
-      aplicarTema(mes);
-      pintarEditor();
-      estadoEditor('Listo, ya se ve en la página.');
-    }catch(err){
-      estadoEditor(err && err.message === 'grande' ? 'La imagen es demasiado grande. Prueba con otra.'
-        : err && err.message === 'imagen' ? 'No se pudo abrir esa imagen.' : 'No se pudo guardar. Intenta de nuevo.');
-    }
-  }
-  async function quitarImagen(r){
-    const mes = mesEditor;
-    try{
-      const t = metaDe(mes);
-      t.meta.v = Object.assign({}, t.meta.v); delete t.meta.v[r];
-      t.meta.color = Object.assign({}, t.meta.color); delete t.meta.color[r];
-      t.imgs = Object.assign({}, t.imgs); delete t.imgs[r];
-      await guardarMeta(mes);
-      conectar().collection('themes').doc('m'+(mes+1)+'_'+r).delete().catch(()=>{});
-      aplicarTema(mes);
-      pintarEditor();
-      estadoEditor('Imagen quitada.');
-    }catch(_){ estadoEditor('No se pudo quitar. Intenta de nuevo.'); }
+    return {data};
   }
 
   const PAGINAS = [
     {href:'tablero.html',  label:'Tablero'},
     {href:'index.html',    label:'Calendario'},
-    {href:'cuentas.html',  label:'Cuentas'},
-    {href:'notas.html',    label:'Notas'},
     {href:'historial.html',label:'Historial'},
+    {href:'documentos.html',label:'Documentos'},
   ];
 
   const css = `
@@ -462,6 +212,39 @@
   const COMPARTIDOS_INICIALES = ['p1','p2','p3','p4','p5','p6','p7','p8'];
   // El reparto se guardaba con estos nombres antes de leer los pagos del calendario.
   const LLAVES_ANTERIORES = {renta:'p1', internet:'p2', apple:'p3', telmar:'p4', telnem:'p5', agua:'p6', luz:'p7', gas:'p8'};
+
+  // Reparto de los gastos compartidos: shared/splits → {idDelPago: % que le toca a Nemecio}.
+  // Sin dato, mitad y mitad. Pasa los nombres viejos (renta, luz…) a los ids de los pagos.
+  function leerReparto(obj){
+    const out = Object.assign({}, obj || {});
+    Object.entries(LLAVES_ANTERIORES).forEach(([viejo, nuevo])=>{
+      if(out[viejo] != null && out[nuevo] == null) out[nuevo] = out[viejo];
+      delete out[viejo];
+    });
+    return out;
+  }
+  // Cuánto de los pagos compartidos (cada vez que tocan) le toca a cada quien.
+  function cargoPorPersona(payments, splits){
+    let a = 0, b = 0;
+    (payments || []).filter(esCompartido).forEach(p=>{
+      const amt = Number(p.amount || 0), pct = splits && splits[p.id] != null ? splits[p.id] : 50;
+      a += amt * pct / 100; b += amt * (100 - pct) / 100;
+    });
+    return {a, b};
+  }
+  // Medidor de media luna: la parte de Nemecio (izquierda) y la de María Fernanda (derecha).
+  function medidorRepartoHTML({a, b}){
+    const money = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN', maximumFractionDigits:0});
+    const total = a + b, pa = total ? a / total : 0.5, L = 125.7; // largo del arco de radio 40
+    return `<div class="medidor" role="img" aria-label="Cargado a Nemecio ${money.format(a)}, a María Fernanda ${money.format(b)}">
+      <svg viewBox="0 0 100 56" aria-hidden="true">
+        <path d="M10 50A40 40 0 0 1 90 50" fill="none" stroke="var(--person-b)" stroke-width="10"/>
+        <path d="M10 50A40 40 0 0 1 90 50" fill="none" stroke="var(--person-a)" stroke-width="10" stroke-dasharray="${(pa*L).toFixed(1)} ${L}"/>
+        <text x="50" y="47" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">${Math.round(pa*100)}% / ${100-Math.round(pa*100)}%</text>
+      </svg>
+      <div class="medidor-nombres"><span class="a">N ${money.format(a)}</span><span class="b">MF ${money.format(b)}</span></div>
+    </div>`;
+  }
 
   function esCompartido(p){
     if(p.recurrenceType === 'one_time') return false;
@@ -663,7 +446,7 @@
   }
   function borrarTicket(db, historyId){ return db.collection('tickets').doc(historyId).delete(); }
   let visor = null;
-  async function verTicket(db, historyId){
+  async function verTicket(db, historyId, coleccion){ // coleccion: 'tickets' (por defecto) o 'docfotos'
     if(!visor){
       visor = document.createElement('div');
       visor.className = 'modal-backdrop ticket-visor';
@@ -676,7 +459,7 @@
     img.hidden = true; estado.hidden = false; estado.textContent = 'Cargando el ticket…';
     visor.hidden = false;
     try{
-      const s = await db.collection('tickets').doc(historyId).get();
+      const s = await db.collection(coleccion || 'tickets').doc(historyId).get();
       if(!s.exists){ estado.textContent = 'No se encontró el ticket.'; return; }
       img.src = s.data().data; img.hidden = false; estado.hidden = true;
     }catch(_){ estado.textContent = 'No se pudo cargar el ticket.'; }
@@ -690,7 +473,27 @@
     cita:   {emoji:'📌', label:'Cita'},
     cumple: {emoji:'🎂', label:'Cumpleaños'},
     otro:   {emoji:'⭐', label:'Otra fecha'},
+    // Solo para el calendario: vencimientos de la página Documentos (no se elige al escribir una nota).
+    doc:    {emoji:'📄', label:'Vence un documento', sistema:true},
   };
+  // Las opciones de tipo para los formularios de notas (sin los de uso interno).
+  function opcionesTipoNota(){
+    return Object.entries(TIPOS_NOTA).filter(([,t])=> !t.sistema).map(([k,t])=>`<option value="${k}">${t.emoji} ${t.label}</option>`).join('');
+  }
+  // Los documentos con fecha de vencimiento, con la forma de una nota para el calendario.
+  function documentosComoFechas(docs){
+    return (docs || []).filter(d=> d.vence).map(d=>({id:'doc_'+d.id, text:'Vence: ' + d.name, tipo:'doc', fecha:d.vence, status:'open'}));
+  }
+
+  // Liga para agregar algo a Google Calendar (con el aviso que tenga ese calendario).
+  // `repetir`: 'MONTHLY', 'YEARLY' o 'DAILY', con `cada` = intervalo.
+  function enlaceCalendario({titulo, fechaISO, detalles, repetir, cada}){
+    const d = fechaISO.replace(/-/g, '');
+    const sig = toISO(addDays(parseISO(fechaISO), 1)).replace(/-/g, '');
+    const q = new URLSearchParams({action:'TEMPLATE', text:titulo, dates: d + '/' + sig, details: detalles || 'Del Calendario de Pagos'});
+    if(repetir) q.set('recur', 'RRULE:FREQ=' + repetir + (cada > 1 ? ';INTERVAL=' + cada : ''));
+    return 'https://calendar.google.com/calendar/render?' + q.toString();
+  }
   function tipoDe(n){ return TIPOS_NOTA[n.tipo] ? n.tipo : 'gasto'; }
   function esFecha(n){ return tipoDe(n) !== 'gasto'; }
   // Las notas con fecha que caen en ese mes: [{d, nota, tipo}] ordenadas por día.
@@ -746,9 +549,20 @@
     messagingSenderId: "783588307830",
     appId: "1:783588307830:web:8b48c58d61b53cbb304057"
   };
+  // Para instalarla como app y que abra sin señal (ver sw.js).
+  if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+  // La primera vez se activa la copia en el teléfono: si se va la señal se ven los
+  // datos guardados y lo que cambien se sube solo al volver.
+  let conectado = false;
   function conectar(){
     if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
-    return firebase.firestore();
+    const db = firebase.firestore();
+    if(!conectado){
+      conectado = true;
+      if(db.enablePersistence) db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+    }
+    return db;
   }
 
   // Quién escribió algo, para mostrar N o MF.
@@ -757,9 +571,9 @@
     return /^nemecio/i.test(email) ? '<span class="who a">N</span>' : '<span class="who b">MF</span>';
   }
 
-  window.Comun = { esCompartido, LLAVES_ANTERIORES, guardarEnHistorial, hoyISO, CATEGORIAS, conectar, quien, elegirIcono, iconoHTML, aplicarTema, diasEspeciales,
+  window.Comun = { esCompartido, LLAVES_ANTERIORES, leerReparto, cargoPorPersona, medidorRepartoHTML, guardarEnHistorial, hoyISO, CATEGORIAS, conectar, quien, elegirIcono, iconoHTML, aplicarTema, diasEspeciales,
     fechas: {parseISO, toISO, cmp, daysInMonth, addDays, todayObj, monthAbs, occurrenceAtMonth, diffDays, weekdayMon},
     nextDue, prevOccurrence, nextPayday, statusForDue, marcarPagado, desmarcarPago, pagarConAviso,
     elegirFoto, guardarTicket, borrarTicket, verTicket, aviso,
-    TIPOS_NOTA, tipoDe, esFecha, eventosDelMes, fechaDeNota };
+    TIPOS_NOTA, tipoDe, esFecha, eventosDelMes, fechaDeNota, opcionesTipoNota, documentosComoFechas, enlaceCalendario, prepararImagen };
 })();

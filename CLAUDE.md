@@ -15,16 +15,19 @@ Páginas privadas de Nemecio y María Fernanda para llevar pagos, gastos compart
 
 Sin build ni dependencias locales: HTML, CSS y JavaScript sueltos. Firebase se carga desde `gstatic.com` (versión compat 10.14.1). Cada página carga, en este orden: Firebase, `acceso.js`, `comun.js` y luego su propio `<script>` al final.
 
-- `tablero.html`: Tablero (primera opción del menú): resumen arriba y tres columnas tipo corcho: Pendientes (notas), Por pagar (antes de la nómina) y Ya pagado este mes.
+- `tablero.html`: Tablero (primera opción del menú y pantalla de inicio de la app instalada): corcho con marco de madera donde se pegan las notas (en la computadora se arrastran; la posición queda en `notes.pos`), la libreta del súper (`shopping`) y los tickets del mes; a un lado, un pizarrón con lo que hay que pagar antes de la nómina.
+- `documentos.html`: pólizas, contratos, etc. (`documents`, foto en `docfotos`); sus vencimientos salen en la vista Mes.
 - `index.html`: Calendario de Pagos (quincena y calendario). Al marcar un pago como hecho, se guarda en el historial.
-- `cuentas.html`: Cuentas de la Casa. Pagos del calendario marcados como "Gasto compartido" y el reparto entre los dos.
-- `notas.html`: bloc de notas compartido; una nota se puede pasar al calendario o al historial. Una nota puede tener `tipo` (cita, cumple, otro; sin tipo = gasto o pendiente) y `fecha`: las que tienen fecha salen en la vista Mes (los cumpleaños cada año). Ver `TIPOS_NOTA` y `eventosDelMes()` en comun.js.
-- `historial.html`: lo ya pagado, total por mes, comparación con el mes anterior y gasto por categoría.
+- Notas (`notes`): se pegan en el Tablero; las terminadas (`status` history, calendar o done) se ven en el Historial. Una nota puede tener `tipo` (cita, cumple, otro; sin tipo = gasto o pendiente) y `fecha`: las que tienen fecha salen en la vista Mes (los cumpleaños cada año). Ver `TIPOS_NOTA` y `eventosDelMes()` en comun.js.
+- `historial.html`: lo ya pagado, total por mes, comparación con el mes anterior, gasto por categoría contra el presupuesto y las notas terminadas.
+- Gastos compartidos: el reparto de cada pago (% de Nemecio) se elige en el formulario del pago en el Calendario y se guarda en `shared/splits`; el medidor (`Comun.medidorRepartoHTML`) sale en el Tablero y en la Quincena.
 - `acceso.js`: pantalla de entrada (Google o enlace por correo) y `window.requireAccess(onReady)`.
-- `comun.js`: `window.Comun` con el menú, el tema de cada mes (`TEMAS_DEL_MES`: color, saludo, fondo de emojis; `diasEspeciales()` para el calendario; es el único lugar donde se definen), `conectar()`, `guardarEnHistorial()`, `esCompartido()`, `CATEGORIAS`, `hoyISO()` `quien()`, las fechas de los pagos (`nextDue`, `nextPayday`, `statusForDue`, `Comun.fechas`), `marcarPagado`/`desmarcarPago`/`pagarConAviso`, los tickets (`guardarTicket`, `verTicket`, `elegirFoto`) y `aviso()`. El Calendario y el Tablero usan estas mismas funciones: no las copies en una página.
+- `comun.js`: `window.Comun` con el menú, el tema de cada mes (`TEMAS_DEL_MES`: color, saludo, fondo de emojis y la guirnalda dibujada en `ADORNOS`; `diasEspeciales()` para el calendario; es el único lugar donde se definen), `conectar()`, `guardarEnHistorial()`, `esCompartido()`, `CATEGORIAS`, `hoyISO()` `quien()`, las fechas de los pagos (`nextDue`, `nextPayday`, `statusForDue`, `Comun.fechas`), `marcarPagado`/`desmarcarPago`/`pagarConAviso`, los tickets (`guardarTicket`, `verTicket`, `elegirFoto`) y `aviso()`. El Calendario y el Tablero usan estas mismas funciones: no las copies en una página.
 - `estilo.css`: estilos compartidos (variables `--accent`, `--paper`, `--ink`, etc.).
 
-Colecciones de Firestore: `payments`, `config/payroll`, `shared/splits`, `notes`, `history`, `tickets` (foto del recibo; mismo id que su entrada de `history`, que lleva `ticket: true`) y `themes` (imágenes del mes: `themes/m1`…`m12` con versiones y colores, y `themes/m10_portada`, `_fondo`, `_mascota` con la imagen comprimida). Las imágenes del mes van en Firestore, nunca en el repositorio: el repositorio es público y suelen tener derechos de autor (Disney, bancos de imágenes).
+Colecciones de Firestore: `payments`, `config/payroll`, `shared/splits`, `notes`, `history`, `tickets` (foto del recibo; mismo id que su entrada de `history`, que lleva `ticket: true`) , `shopping` (lista del súper), `documents` y `docfotos`, y `config/budgets` (presupuesto por categoría). `themes` ya no se usa (eran imágenes del mes que se quitaron). Las fotos (tickets, documentos) van en Firestore, nunca en el repositorio: el repositorio es público.
+
+La app se puede instalar en el teléfono (`manifest.webmanifest`, `sw.js`, `icons/`). Si agregas una página, súmala a la lista `ARCHIVOS` de `sw.js` para que abra sin señal.
 
 ## Reglas que no se deben romper
 

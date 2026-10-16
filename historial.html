@@ -6,6 +6,10 @@
 <title>Historial</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="estilo.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#6B4A2E">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icono-192.png">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -29,6 +33,10 @@
 .cat{ display:grid; grid-template-columns:1fr auto; gap:4px 10px; align-items:center; margin-bottom:10px; font-size:13.5px; }
 .cat-track{ grid-column:1 / -1; height:6px; border-radius:999px; background:var(--surface-2); overflow:hidden; }
 .cat-fill{ height:100%; border-radius:999px; background:var(--accent); }
+.cat-fill.cerca{ background:var(--warn); }
+.cat-fill.pasado{ background:var(--critical); }
+.cat .tope{ color:var(--ink-faint); font-weight:400; }
+.cat-aviso{ grid-column:1 / -1; font-size:12px; color:var(--critical); font-weight:600; }
 .entry{ display:flex; gap:10px; align-items:center; padding:10px 2px; border-top:1px solid var(--border); }
 .entry:first-child{ border-top:none; }
 .entry-day{ flex:0 0 42px; text-align:center; font-size:12px; color:var(--ink-faint); line-height:1.15; }
@@ -62,11 +70,12 @@
   </section>
 
   <section class="card">
-    <h2>Por categoría</h2>
+    <div class="head-row"><h2>Por categoría</h2><button type="button" class="btn btn-small" id="presBtn">Presupuesto</button></div>
     <div id="cats"><div class="empty">Cargando…</div></div>
   </section>
   </div>
 
+  <div class="col-main">
   <section class="card">
     <div class="head-row">
       <h2>Gastos del mes</h2>
@@ -74,6 +83,23 @@
     </div>
     <div id="entries"><div class="empty">Cargando…</div></div>
   </section>
+  <section class="card">
+    <h2>Notas terminadas</h2>
+    <div id="hechas"><div class="empty">Cargando…</div></div>
+  </section>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="presBackdrop" hidden>
+  <form class="modal" id="presForm">
+    <h2>Presupuesto del mes</h2>
+    <p class="muted" style="margin:-6px 0 14px">Cuánto quieren gastar como máximo en cada categoría al mes. Déjalo vacío si no quieren límite.</p>
+    <div id="presCampos"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
 </div>
 
 <div class="modal-backdrop" id="addBackdrop" hidden>
@@ -105,6 +131,7 @@
   const db = Comun.conectar();
   const $ = id => document.getElementById(id);
   let entries = [];
+  let presupuesto = {};
   const now = new Date();
   let view = {y: now.getFullYear(), m: now.getMonth()};
 
@@ -141,13 +168,21 @@
         <span class="bar-amt">${totals[i] ? corto(totals[i]) : '—'}</span>
         <span class="bar-fill${totals[i] ? '' : ' is-zero'}" style="height:${Math.round(totals[i]/max*70)}%"></span><span class="bar-lbl">${MES_CORTO[v.m]}</span></button>`).join('');
 
+    // Con presupuesto, la barra es lo gastado contra ese límite (roja si se pasó); sin él, contra el total del mes.
     const byCat = {};
     list.forEach(e=>{ const c = e.category || 'otro'; byCat[c] = (byCat[c]||0) + Number(e.amount||0); });
+    Object.keys(presupuesto).forEach(c=>{ if(presupuesto[c] > 0 && !(c in byCat)) byCat[c] = 0; });
     const cats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-    $('cats').innerHTML = cats.length ? cats.map(([c,v])=>`<div class="cat">
-        <span>${escapeHTML(Comun.CATEGORIAS[c] || c)}</span><span class="money">${money.format(v)}</span>
-        <div class="cat-track"><div class="cat-fill" style="width:${total ? Math.max(2, v/total*100) : 0}%"></div></div>
-      </div>`).join('') : '<div class="empty">Sin gastos este mes.</div>';
+    $('cats').innerHTML = cats.length ? cats.map(([c,v])=>{
+      const tope = Number(presupuesto[c] || 0);
+      const pct = tope ? v/tope*100 : (total ? v/total*100 : 0);
+      const pasado = tope && v > tope;
+      return `<div class="cat">
+        <span>${escapeHTML(Comun.CATEGORIAS[c] || c)}</span><span class="money">${money.format(v)}${tope ? `<span class="tope"> de ${money.format(tope)}</span>` : ''}</span>
+        <div class="cat-track"><div class="cat-fill${pasado ? ' pasado' : tope && pct >= 80 ? ' cerca' : ''}" style="width:${v ? Math.max(2, Math.min(100, pct)) : 0}%"></div></div>
+        ${pasado ? `<span class="cat-aviso">Se pasaron por ${money.format(v - tope)}</span>` : ''}
+      </div>`;
+    }).join('') : '<div class="empty">Sin gastos este mes.</div>';
 
     $('entries').innerHTML = list.length ? list.map(e=>{
       const [y,m,d] = String(e.date).split('-').map(Number);
@@ -212,11 +247,60 @@
     }).catch(()=> toast('No se pudo guardar.'));
   });
 
-  requireAccess(()=>{
-    db.collection('history').onSnapshot(qs=>{
+  // Presupuesto por categoría: config/budgets → {super: 5000, comida: 2000, …}
+  $('presBtn').addEventListener('click', ()=>{
+    $('presCampos').innerHTML = Object.entries(Comun.CATEGORIAS).map(([k,v])=>`<div class="field"><label for="p-${k}">${v}</label>
+      <input type="number" id="p-${k}" data-cat="${k}" min="0" step="50" inputmode="decimal" value="${presupuesto[k] || ''}" placeholder="Sin límite"></div>`).join('');
+    $('presBackdrop').hidden = false;
+  });
+  $('presForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const nuevo = {};
+    $('presCampos').querySelectorAll('[data-cat]').forEach(i=>{ if(Number(i.value) > 0) nuevo[i.dataset.cat] = Number(i.value); });
+    db.doc('config/budgets').set(nuevo).then(()=>{ $('presBackdrop').hidden = true; toast('Presupuesto guardado'); })
+      .catch(()=> toast('No se pudo guardar.'));
+  });
+  document.addEventListener('click', e=>{ if(e.target.matches('[data-close]') || e.target === $('presBackdrop')) $('presBackdrop').hidden = true; });
+
+  // Solo se bajan los gastos desde 12 meses antes (no todo el historial); si se navega
+  // más atrás de eso, se vuelve a pedir desde más lejos.
+  let desde = null, cancelar = null;
+  function suscribir(){
+    const inicio = shift(view, -12), k = key(inicio.y, inicio.m) + '-01';
+    if(desde && k >= desde) return;
+    desde = k;
+    if(cancelar) cancelar();
+    cancelar = db.collection('history').where('date', '>=', desde).onSnapshot(qs=>{
       entries = qs.docs.map(d=>Object.assign({id:d.id}, d.data()));
       render();
     }, ()=> toast('No se pudo conectar con la base de datos.'));
+  }
+  $('prev').addEventListener('click', ()=>{ if(cancelar) suscribir(); });
+  $('bars').addEventListener('click', ()=>{ if(cancelar) suscribir(); });
+
+  // Las notas del Tablero que ya se terminaron (pagadas, pasadas al calendario o marcadas como listas).
+  const ESTADO_NOTA = {history:'Pagada', calendar:'En el calendario', done:'Lista'};
+  function renderHechas(notes){
+    const lista = notes.filter(n=> n.status && n.status !== 'open').sort((a,b)=> String(b.createdAt).localeCompare(String(a.createdAt)));
+    $('hechas').innerHTML = lista.length ? lista.map(n=>`<div class="entry">
+        <div class="entry-main">
+          <div class="entry-name">${escapeHTML(n.text)}</div>
+          <div class="entry-meta">${Comun.esFecha(n) ? `<span class="tag accent">${Comun.fechaDeNota(n)}</span>` : ''}${Comun.quien(n.by)}<span class="tag ok">${ESTADO_NOTA[n.status] || 'Lista'}</span></div>
+        </div>
+        ${n.amount != null ? `<span class="money">${money.format(n.amount)}</span>` : ''}
+        <button type="button" class="btn-link" data-borrar-nota="${n.id}" aria-label="Borrar nota">✕</button>
+      </div>`).join('') : '<div class="empty">Aquí quedan las notas del Tablero cuando se pagan o se marcan como listas.</div>';
+  }
+  $('hechas').addEventListener('click', e=>{
+    const b = e.target.closest('[data-borrar-nota]');
+    if(b && confirm('¿Borrar esta nota?')) db.collection('notes').doc(b.dataset.borrarNota).delete().catch(()=> toast('No se pudo borrar.'));
+  });
+
+  requireAccess(()=>{
+    suscribir();
+    db.collection('notes').where('status', 'in', ['history','calendar','done'])
+      .onSnapshot(qs=> renderHechas(qs.docs.map(d=>Object.assign({id:d.id}, d.data()))), ()=>{});
+    db.doc('config/budgets').onSnapshot(s=>{ presupuesto = s.exists ? (s.data() || {}) : {}; render(); }, ()=>{});
   });
   render();
 })();

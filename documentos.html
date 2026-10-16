@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Documentos</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="estilo.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#6B4A2E">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icono-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="acceso.js"></script>
+<script src="comun.js"></script>
+<style>
+.doc{ display:grid; grid-template-columns:auto 1fr auto; gap:4px 12px; align-items:center; padding:14px 2px; border-top:1px solid var(--border); }
+.doc:first-child{ border-top:none; }
+.doc-icono{ width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:20px; background:var(--surface-2); }
+.doc-nombre{ font-weight:600; font-size:15px; overflow-wrap:anywhere; }
+.doc-notas{ font-size:12.5px; color:var(--ink-soft); white-space:pre-wrap; overflow-wrap:anywhere; }
+.doc-acciones{ grid-column:2 / -1; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.doc-acciones .btn-link{ padding:6px 0; color:var(--ink-soft); text-decoration:underline; }
+.vence{ font-size:11.5px; font-weight:600; padding:1px 8px; border-radius:999px; white-space:nowrap; justify-self:end; }
+.vence.ok{ color:var(--ok); background:var(--ok-ink); }
+.vence.warn{ color:var(--warn); background:var(--warn-ink); }
+.vence.critical{ color:var(--critical); background:var(--critical-ink); }
+.vence.neutral{ color:var(--ink-soft); background:var(--neutral-ink); }
+.head-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
+.head-row h2{ margin:0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <h1>Documentos</h1>
+    <p>Pólizas, contratos, garantías, la tarjeta de circulación… con su foto y cuándo vencen. Los vencimientos salen en la vista Mes del Calendario.</p>
+  </header>
+
+  <section class="card">
+    <div class="head-row"><h2>Guardados</h2><button type="button" class="btn btn-small" id="addDoc">+ Documento</button></div>
+    <div id="docs"><div class="empty">Cargando…</div></div>
+  </section>
+</div>
+
+<div class="modal-backdrop" id="docBackdrop" hidden>
+  <form class="modal" id="docForm" autocomplete="off">
+    <h2 id="docTitulo">Nuevo documento</h2>
+    <div class="field"><label for="d-name">Nombre</label><input type="text" id="d-name" required placeholder="Ej. Seguro del coche, contrato de renta…"></div>
+    <div class="field"><label for="d-vence">Vence el (opcional)</label><input type="date" id="d-vence"></div>
+    <div class="field"><label for="d-notas">Notas (opcional)</label><textarea id="d-notas" placeholder="Ej. número de póliza, a quién llamar…"></textarea></div>
+    <div class="field"><label for="d-foto">Foto (opcional)</label><input type="file" id="d-foto" accept="image/*"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-danger" id="d-borrar" hidden>Borrar</button>
+      <button type="button" class="btn" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary" id="d-guardar">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(function(){
+  "use strict";
+  const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const {parseISO, todayObj, diffDays} = Comun.fechas;
+  const db = Comun.conectar();
+  const $ = id => document.getElementById(id);
+  const toast = msg => Comun.aviso(msg);
+  let docs = [], editando = null;
+
+  function escapeHTML(t){ return String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function estado(vence){
+    if(!vence) return {label:'Sin vencimiento', cls:'neutral'};
+    const f = parseISO(vence), dd = diffDays(f, todayObj());
+    const cuando = f.d + ' ' + MES[f.m] + ' ' + f.y;
+    if(dd < 0) return {label:'Venció el ' + cuando, cls:'critical'};
+    if(dd <= 30) return {label:'Vence en ' + dd + ' día' + (dd===1?'':'s'), cls:'warn'};
+    return {label:'Vence el ' + cuando, cls:'ok'};
+  }
+  function render(){
+    // Primero lo que vence antes; los que no vencen, al final.
+    const lista = docs.slice().sort((a,b)=> (a.vence || '9999').localeCompare(b.vence || '9999'));
+    $('docs').innerHTML = lista.length ? lista.map(d=>{
+      const s = estado(d.vence);
+      return `<div class="doc">
+        <span class="doc-icono">📄</span>
+        <div><div class="doc-nombre">${escapeHTML(d.name)}</div>${d.notas ? `<div class="doc-notas">${escapeHTML(d.notas)}</div>` : ''}</div>
+        <span class="vence ${s.cls}">${s.label}</span>
+        <div class="doc-acciones">
+          ${d.foto ? `<button type="button" class="btn-link" data-ver="${d.id}">📎 Ver foto</button>` : ''}
+          ${d.vence ? `<a class="btn-link" target="_blank" rel="noopener" href="${Comun.enlaceCalendario({titulo:'Vence: ' + d.name, fechaISO:d.vence, detalles:d.notas || ''})}">📅 Recordarme</a>` : ''}
+          <button type="button" class="btn-link" data-editar="${d.id}">Cambiar</button>
+        </div>
+      </div>`;
+    }).join('') : '<div class="empty">Todavía no hay documentos. Agreguen el primero con "+ Documento".</div>';
+  }
+
+  function abrir(d){
+    editando = d || null;
+    $('docForm').reset();
+    $('docTitulo').textContent = d ? 'Cambiar documento' : 'Nuevo documento';
+    $('d-name').value = d ? d.name : '';
+    $('d-vence').value = d && d.vence ? d.vence : '';
+    $('d-notas').value = d && d.notas ? d.notas : '';
+    $('d-borrar').hidden = !d;
+    $('docBackdrop').hidden = false;
+  }
+  $('addDoc').addEventListener('click', ()=> abrir(null));
+  $('docs').addEventListener('click', e=>{
+    const ed = e.target.closest('[data-editar]');
+    if(ed) return abrir(docs.find(d=>d.id===ed.dataset.editar));
+    const ver = e.target.closest('[data-ver]');
+    // La foto se guarda aparte (docfotos) y se abre en el mismo visor que los tickets.
+    if(ver) Comun.verTicket(db, ver.dataset.ver, 'docfotos');
+  });
+  $('d-borrar').addEventListener('click', ()=>{
+    const d = editando; if(!d || !confirm('¿Borrar "' + d.name + '"?')) return;
+    db.collection('documents').doc(d.id).delete().then(()=>{ $('docBackdrop').hidden = true; toast('Documento borrado'); }).catch(()=> toast('No se pudo borrar.'));
+    db.collection('docfotos').doc(d.id).delete().catch(()=>{});
+  });
+  $('docForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const d = editando;
+    const id = d ? d.id : db.collection('documents').doc().id;
+    const file = $('d-foto').files && $('d-foto').files[0];
+    const u = firebase.auth().currentUser;
+    const datos = {name: $('d-name').value.trim(), vence: $('d-vence').value || null, notas: $('d-notas').value.trim()};
+    $('d-guardar').disabled = true;
+    try{
+      if(file){
+        toast('Guardando la foto…');
+        const {data} = await Comun.prepararImagen(file);
+        await db.collection('docfotos').doc(id).set({data});
+        datos.foto = true;
+      }
+      if(d) await db.collection('documents').doc(id).update(datos);
+      else await db.collection('documents').doc(id).set(Object.assign({foto:false, by: u ? u.email : null, createdAt: new Date().toISOString()}, datos));
+      $('docBackdrop').hidden = true;
+      toast('Documento guardado');
+    }catch(err){ toast(err && err.message === 'grande' ? 'La foto es demasiado grande. Prueba con otra.' : 'No se pudo guardar.'); }
+    finally{ $('d-guardar').disabled = false; }
+  });
+  document.addEventListener('click', e=>{ if(e.target.matches('[data-close]') || e.target === $('docBackdrop')) $('docBackdrop').hidden = true; });
+
+  requireAccess(()=>{
+    db.collection('documents').onSnapshot(qs=>{ docs = qs.docs.map(d=>Object.assign({id:d.id}, d.data())); render(); },
+      ()=> toast('No se pudo conectar con la base de datos.'));
+  });
+})();
+</script>
+</body>
+</html>

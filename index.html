@@ -6,6 +6,10 @@
 <title>Calendario de Pagos</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="estilo.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#6B4A2E">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icono-192.png">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -85,6 +89,8 @@ body{
 .sum-sub .btn-link{ color:var(--accent); text-decoration:underline; padding:8px 0; font-size:13.5px; }
 .sum-sub .btn-link:hover{ color:var(--accent); }
 .add-main{ width:100%; padding:13px 16px; font-size:15px; }
+.sum-reparto{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; padding-top:12px; border-top:1px solid var(--border); }
+.sum-reparto-lbl{ font-size:13px; color:var(--ink-soft); font-weight:600; }
 
 .bucket{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl); box-shadow:var(--card-shadow); overflow:hidden; }
 .bucket-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:16px 18px 10px; }
@@ -283,6 +289,7 @@ body{
       <p class="sum-lead" id="sumLead">Cargando…</p>
       <p class="sum-amount" id="sumAmount">—</p>
       <p class="sum-sub"><span id="sumSub"></span><button type="button" class="btn-link" id="editPayrollBtn" disabled>Ajustar nómina</button></p>
+      <div class="sum-reparto"><span class="sum-reparto-lbl">Gastos compartidos al mes</span><div id="medidor"></div></div>
     </section>
 
     <button id="addPaymentBtn" class="btn btn-primary add-main" disabled>+ Agregar pago</button>
@@ -439,11 +446,17 @@ body{
 
       <div class="checkline" id="sharedWrap">
         <input type="checkbox" id="f-shared">
-        <label for="f-shared">Gasto compartido (aparece en Cuentas de la Casa)</label>
+        <label for="f-shared">Gasto compartido (se divide entre los dos)</label>
+      </div>
+      <div class="field" id="splitWrap" hidden>
+        <label for="f-split">Cuánto le toca a cada quien</label>
+        <input type="range" id="f-split" class="split" min="0" max="100" step="5" value="50" aria-describedby="f-splitTxt">
+        <p class="hint split-txt" id="f-splitTxt"></p>
       </div>
 
       <div class="modal-actions">
         <button type="button" class="btn btn-danger" id="paymentDeleteBtn" hidden>Eliminar</button>
+        <a class="btn" id="paymentRecordar" target="_blank" rel="noopener" hidden>📅 Recordarme</a>
         <button type="button" class="btn btn-ghost" id="paymentCancelBtn">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="paymentSaveBtn">Guardar</button>
       </div>
@@ -529,7 +542,7 @@ body{
   const applyMonthTheme = (m) => Comun.aplicarTema(m);
 
   // ---------- state ----------
-  const state = { payments:null, payroll:null, db:null, editingId:null, calView:todayObj(), calSel:null, notes:[], activeTab:'quincena', formIconDataUri:null };
+  const state = { payments:null, payroll:null, db:null, editingId:null, calView:todayObj(), calSel:null, notes:[], docs:[], splits:{}, activeTab:'quincena', formIconDataUri:null };
 
   const els = {
     summary: document.getElementById('summary'),
@@ -604,6 +617,7 @@ body{
     els.sumAmount.textContent = money.format(urgentSum);
     els.sumSub.textContent = (urgent.length ? urgent.length+' pago'+(urgent.length===1?'':'s') : 'Nada pendiente')
       + (overdue ? ', '+overdue+' vencido'+(overdue===1?'':'s') : '') + '. Te pagan '+cuando+'.';
+    document.getElementById('medidor').innerHTML = Comun.medidorRepartoHTML(Comun.cargoPorPersona(state.payments, state.splits));
 
     els.urgentTotal.textContent = money.format(urgentSum);
     els.waitingTotal.textContent = money.format(waitingSum);
@@ -709,13 +723,15 @@ body{
   const dosMeses = window.matchMedia('(min-width:960px)');
   function siguienteMes({y,m}){ return m===11 ? {y:y+1, m:0} : {y, m:m+1}; }
 
+  // Notas con fecha y vencimientos de documentos, para pintarlos en los días.
+  function fechasDelCalendario(){ return state.notes.concat(Comun.documentosComoFechas(state.docs)); }
   function pintarMes(y, m, labelEl, gridEl, fiestasEl){
     labelEl.textContent = MONTH_LONG[m] + ' ' + y;
     const occ = computeMonthOccurrences(y,m);
     const byDay = {};
     occ.forEach(o=>{ (byDay[o.date.d] = byDay[o.date.d]||[]).push(o); });
     const evByDay = {};
-    Comun.eventosDelMes(state.notes, y, m).forEach(ev=>{ (evByDay[ev.d] = evByDay[ev.d]||[]).push(ev); });
+    Comun.eventosDelMes(fechasDelCalendario(), y, m).forEach(ev=>{ (evByDay[ev.d] = evByDay[ev.d]||[]).push(ev); });
     const highlightByDay = {};
     occ.forEach(o=>{
       const p = o.payment;
@@ -777,7 +793,7 @@ body{
     const today = todayObj();
     els.calListTitle.textContent = MONTH_LONG[m];
     // Primero las fechas de las notas (citas, cumpleaños…), luego los pagos.
-    const eventos = Comun.eventosDelMes(state.notes, y, m);
+    const eventos = Comun.eventosDelMes(fechasDelCalendario(), y, m);
     const fechasHTML = eventos.length ? '<li class="divider-later">Fechas del mes</li>' + eventos.map(ev=>{
       const t = Comun.TIPOS_NOTA[ev.tipo];
       return `<li class="payment-row evento-row"><span class="icon-tile evento-tile">${t.emoji}</span>
@@ -940,8 +956,10 @@ body{
     document.getElementById('windowStartWrap').hidden = true;
     document.getElementById('f-windowstart').value = 1;
     document.getElementById('f-shared').checked = false;
+    document.getElementById('f-split').value = 50;
     resetIconPicker();
     deleteBtn.hidden = true;
+    document.getElementById('paymentRecordar').hidden = true;
     resetDeleteBtn();
     syncFormVisibility();
     paymentBackdrop.hidden = false;
@@ -954,12 +972,19 @@ body{
     state.editingId = id;
     document.getElementById('paymentModalTitle').textContent = 'Editar pago';
     deleteBtn.hidden = false;
+    // Liga a Google Calendar con la próxima fecha y cómo se repite (para que el teléfono avise).
+    const rec = document.getElementById('paymentRecordar');
+    rec.href = Comun.enlaceCalendario({titulo:'Pagar ' + p.name + ' (' + money.format(p.amount) + ')', fechaISO: toISO(nextDue(p, todayObj())),
+      repetir: p.recurrenceType==='monthly' ? 'MONTHLY' : p.recurrenceType==='interval_days' ? 'DAILY' : '',
+      cada: p.recurrenceType==='monthly' ? (p.monthsInterval||1) : p.intervalDays});
+    rec.hidden = false;
     resetDeleteBtn();
     document.getElementById('f-name').value = p.name;
     document.getElementById('f-category').value = p.category;
     document.getElementById('f-amount').value = p.amount;
     document.getElementById('f-notes').value = p.notes || '';
     document.getElementById('f-shared').checked = Comun.esCompartido(p);
+    document.getElementById('f-split').value = state.splits[id] != null ? state.splits[id] : 50;
     if(p.iconDataUri){ showIconPreviewFromDataUri(p.iconDataUri); state.formIconDataUri = p.iconDataUri; }
     else resetIconPicker();
     if(p.recurrenceType==='one_time'){
@@ -1043,6 +1068,8 @@ body{
     const repeats = document.getElementById('f-repeat-yes').checked;
     recurringFields.hidden = !repeats;
     document.getElementById('sharedWrap').hidden = !repeats;
+    document.getElementById('splitWrap').hidden = !repeats || !document.getElementById('f-shared').checked;
+    pintarReparto();
     oneTimeFields.hidden = repeats;
     const freq = document.getElementById('f-freq').value;
     const isCustom = freq === 'custom-days';
@@ -1053,6 +1080,14 @@ body{
   }
   document.querySelectorAll('input[name="f-repeat"]').forEach(r=>r.addEventListener('change', syncFormVisibility));
   document.getElementById('f-freq').addEventListener('change', syncFormVisibility);
+  // Lectura del control de reparto: cuánto le toca a cada quien de este pago.
+  function pintarReparto(){
+    const r = document.getElementById('f-split'), pct = Number(r.value), amt = parseFloat(document.getElementById('f-amount').value) || 0;
+    r.style.setProperty('--p', pct + '%');
+    document.getElementById('f-splitTxt').innerHTML = `<span class="a">N ${pct}% ${money.format(amt*pct/100)}</span> · <span class="b">MF ${100-pct}% ${money.format(amt*(100-pct)/100)}</span>`;
+  }
+  ['f-split','f-amount'].forEach(id=> document.getElementById(id).addEventListener('input', pintarReparto));
+  document.getElementById('f-shared').addEventListener('change', syncFormVisibility);
   document.getElementById('f-haswindow').addEventListener('change', function(){
     document.getElementById('windowStartWrap').hidden = !this.checked;
   });
@@ -1102,16 +1137,21 @@ body{
       }
     }
 
+    // El reparto se guarda aparte, en shared/splits (lo lee el medidor del Tablero y la Quincena).
+    const pct = Number(document.getElementById('f-split').value);
+    const guardarReparto = id => shared && data.recurrenceType !== 'one_time'
+      ? state.db.collection('shared').doc('splits').set({[id]: pct}, {merge:true}).catch(()=>{}) : null;
     if(state.editingId){
       const existing = state.payments.find(x=>x.id===state.editingId);
       if(existing) data.lastPaidDate = existing.lastPaidDate || null;
-      state.db.collection('payments').doc(state.editingId).set(Object.assign({createdAt: existing && existing.createdAt || new Date().toISOString()}, data))
-        .then(()=>{ showToast('Pago actualizado'); closePaymentModal(); })
+      const id = state.editingId;
+      state.db.collection('payments').doc(id).set(Object.assign({createdAt: existing && existing.createdAt || new Date().toISOString()}, data))
+        .then(()=>{ guardarReparto(id); showToast('Pago actualizado'); closePaymentModal(); })
         .catch(()=> showToast('No se pudo guardar.'));
     } else {
       data.createdAt = new Date().toISOString();
       state.db.collection('payments').add(data)
-        .then(()=>{ showToast('Pago agregado'); closePaymentModal(); })
+        .then(ref=>{ guardarReparto(ref.id); showToast('Pago agregado'); closePaymentModal(); })
         .catch(()=> showToast('No se pudo guardar.'));
     }
   });
@@ -1143,7 +1183,7 @@ body{
 
   // ---------- boot ----------
   function boot(){
-    const db = firebase.firestore();
+    const db = Comun.conectar();
     state.db = db;
     els.addBtn.disabled = false;
     els.payrollBtn.disabled = false;
@@ -1154,6 +1194,13 @@ body{
       if(state.activeTab==='calendario') renderCalendar();
     }, ()=>{ showToast('No se pudo conectar con la base de datos.'); });
 
+    // Reparto de los gastos compartidos, para el medidor y el control de cada pago.
+    db.collection('shared').doc('splits').onSnapshot(s=>{ state.splits = Comun.leerReparto(s.exists ? s.data() : {}); render(); }, ()=>{});
+    // Los vencimientos de Documentos también salen en la vista Mes.
+    db.collection('documents').onSnapshot(qs=>{
+      state.docs = qs.docs.map(d=> Object.assign({id:d.id}, d.data()));
+      if(state.activeTab==='calendario') renderCalendar();
+    }, ()=>{});
     // Las notas con fecha (citas, cumpleaños…) salen en la vista Mes.
     db.collection('notes').onSnapshot(qs=>{
       state.notes = qs.docs.map(d=> Object.assign({id:d.id}, d.data()));
