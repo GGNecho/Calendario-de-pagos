@@ -128,3 +128,7 @@ textarea{ resize:vertical; min-height:64px; }
   body.con-portada .hero{ min-height:206px; }
   body .hero h1{ font-size:40px; }
 }
+
+/* Visor de tickets (fotos de recibos), ver Comun.verTicket. */
+.ticket-visor .modal{ max-width:720px; }
+.ticket-visor img{ display:block; width:100%; height:auto; border-radius:var(--radius-sm); margin-bottom:12px; }

@@ -276,7 +276,7 @@
   }
   async function prepararImagen(file, ranura){
     const img = await abrirArchivo(file);
-    const max = ranura==='portada' ? 1200 : ranura==='fondo' ? 480 : 900;
+    const max = ranura==='portada' ? 1200 : ranura==='ticket' ? 1600 : ranura==='fondo' ? 480 : 900;
     let c = escalar((()=>{ const t = lienzo(img.naturalWidth, img.naturalHeight); t.getContext('2d').drawImage(img, 0, 0); return t; })(), max);
     if(ranura==='mascota') c = escalar(quitarFondo(c), 480);
     const color = colorDominante(c);
@@ -426,6 +426,7 @@
   }
 
   const PAGINAS = [
+    {href:'tablero.html',  label:'Tablero'},
     {href:'index.html',    label:'Calendario'},
     {href:'cuentas.html',  label:'Cuentas'},
     {href:'notas.html',    label:'Notas'},
@@ -433,11 +434,11 @@
   ];
 
   const css = `
-  .menu{ position:sticky; top:0; z-index:30; display:flex; justify-content:center; gap:4px; padding:8px 12px;
+  .menu{ position:sticky; top:0; z-index:30; display:flex; justify-content:safe center; gap:4px; padding:8px 12px; overflow-x:auto; scrollbar-width:none; white-space:nowrap;
     padding-top:calc(8px + env(safe-area-inset-top,0px));
     background:color-mix(in srgb, var(--paper,#F2F4EE) 88%, transparent);
     -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); border-bottom:1px solid var(--border,#E1E5D6); }
-  .menu a{ font:600 13.5px var(--font-body,-apple-system,BlinkMacSystemFont,sans-serif); color:var(--ink-soft,#5B6660);
+  .menu a{ flex:0 0 auto; font:600 13.5px var(--font-body,-apple-system,BlinkMacSystemFont,sans-serif); color:var(--ink-soft,#5B6660);
     text-decoration:none; padding:7px 12px; border-radius:999px; }
   .menu a:hover{ color:var(--ink,#1C2621); }
   .menu a.activa{ background:var(--ink,#1C2621); color:var(--paper,#F2F4EE); }`;
@@ -525,6 +526,213 @@
     return `<span class="${cls}" style="background:${ic.color}"${t}>${ic.emoji}</span>`;
   }
 
+  // ---------- Fechas de los pagos (las usan el Calendario y el Tablero) ----------
+  // Fechas como {y, m, d} con m de 0 a 11.
+  function parseISO(s){ const p = s.split('-').map(Number); return {y:p[0], m:p[1]-1, d:p[2]}; }
+  function toISO(o){ return String(o.y).padStart(4,'0')+'-'+String(o.m+1).padStart(2,'0')+'-'+String(o.d).padStart(2,'0'); }
+  function toUTCms(o){ return Date.UTC(o.y, o.m, o.d); }
+  function cmp(a, b){ return toUTCms(a) - toUTCms(b); }
+  function daysInMonth(y, m){ return new Date(Date.UTC(y, m+1, 0)).getUTCDate(); }
+  function addDays(o, n){ const dt = new Date(toUTCms(o) + n*86400000); return {y:dt.getUTCFullYear(), m:dt.getUTCMonth(), d:dt.getUTCDate()}; }
+  function todayObj(){ const now = new Date(); return {y:now.getFullYear(), m:now.getMonth(), d:now.getDate()}; }
+  function monthAbs(o){ return o.y*12 + o.m; }
+  function fromMonthAbs(abs){ return {y:Math.floor(abs/12), m:((abs%12)+12)%12}; }
+  function occurrenceAtMonth(abs, day, lastDay){
+    const {y, m} = fromMonthAbs(abs);
+    const dim = daysInMonth(y, m);
+    return {y, m, d: lastDay ? dim : Math.min(day||1, dim)};
+  }
+  function diffDays(a, b){ return Math.round((toUTCms(a) - toUTCms(b)) / 86400000); }
+  function weekdayMon(o){ return (new Date(Date.UTC(o.y, o.m, o.d)).getUTCDay() + 6) % 7; } // 0=lunes
+
+  function nextMonthly(rule, today){
+    const k = rule.monthsInterval || 1;
+    const anchorAbs = monthAbs(parseISO(rule.anchorDate));
+    let candAbs = anchorAbs + Math.max(0, Math.ceil((monthAbs(today) - anchorAbs) / k)) * k;
+    let cand = occurrenceAtMonth(candAbs, rule.day, rule.lastDayOfMonth);
+    for(let guard = 0; cmp(cand, today) < 0 && guard < 60; guard++){ candAbs += k; cand = occurrenceAtMonth(candAbs, rule.day, rule.lastDayOfMonth); }
+    return cand;
+  }
+  function nextIntervalDays(rule, today){
+    const anchor = parseISO(rule.anchorDate);
+    return addDays(anchor, Math.max(0, Math.ceil(diffDays(today, anchor) / rule.intervalDays)) * rule.intervalDays);
+  }
+  function rawNext(rule, today){
+    if(rule.recurrenceType === 'monthly') return nextMonthly(rule, today);
+    if(rule.recurrenceType === 'interval_days') return nextIntervalDays(rule, today);
+    return parseISO(rule.anchorDate);
+  }
+  // La primera fecha que todavía no se ha pagado, aunque ya haya pasado: así un pago
+  // que se olvidó marcar aparece como vencido en vez de saltar solo al mes siguiente.
+  // Sin pagos marcados, se cuenta desde que se creó.
+  function nextDue(payment, today){
+    if(payment.recurrenceType === 'one_time') return parseISO(payment.anchorDate);
+    let from = today;
+    if(payment.lastPaidDate) from = addDays(parseISO(payment.lastPaidDate), 1);
+    else if(payment.createdAt) from = parseISO(String(payment.createdAt).slice(0,10));
+    return rawNext(payment, from);
+  }
+  // La fecha que tocaba antes de `date` (null si no hay), para desmarcar un pago.
+  function prevOccurrence(p, date){
+    if(p.recurrenceType === 'monthly'){
+      const abs = monthAbs(date) - (p.monthsInterval || 1);
+      return abs < monthAbs(parseISO(p.anchorDate)) ? null : occurrenceAtMonth(abs, p.day, p.lastDayOfMonth);
+    }
+    if(p.recurrenceType === 'interval_days'){
+      const d = addDays(date, -p.intervalDays);
+      return cmp(d, parseISO(p.anchorDate)) < 0 ? null : d;
+    }
+    return null;
+  }
+  function nextPayday(payroll, today){
+    const anchor = parseISO(payroll.anchorDate), n = payroll.intervalDays || 14;
+    return addDays(anchor, Math.max(0, Math.floor(diffDays(today, anchor) / n) + 1) * n);
+  }
+  function statusForDue(dueDate, today){
+    const dd = diffDays(dueDate, today);
+    if(dd < 0) return {label:'Venció hace '+(-dd)+' día'+(-dd===1?'':'s'), cls:'critical'};
+    if(dd === 0) return {label:'Hoy', cls:'critical'};
+    if(dd === 1) return {label:'Mañana', cls:'warn'};
+    if(dd <= 3) return {label:'en '+dd+' días', cls:'warn'};
+    return {label:'en '+dd+' días', cls:'neutral'};
+  }
+
+  // Marca como pagada la fecha `dueISO` y la guarda en el Historial con id fijo
+  // (pago_fecha), para no duplicar. Devuelve {antes, historyId, historial}: `antes`
+  // sirve para deshacer y `historial` es la promesa de la entrada del Historial.
+  // Se guarda la FECHA QUE TOCABA (no la de hoy) para que el ciclo cuente como
+  // pagado aunque se pague antes o tarde.
+  function marcarPagado(db, p, dueISO){
+    const antes = p.lastPaidDate || null;
+    const historyId = p.id + '_' + dueISO;
+    return db.collection('payments').doc(p.id).update({lastPaidDate: dueISO}).then(()=>({
+      antes, historyId,
+      historial: guardarEnHistorial(db, {
+        name: p.name, amount: p.amount, category: p.category, date: hoyISO(),
+        dueDate: dueISO, paymentId: p.id, source: 'calendario',
+      }, historyId),
+    }));
+  }
+  // Quita la marca de la fecha `dueISO`, su entrada del Historial y su ticket.
+  // `volverA` es la marca anterior si se sabe (al deshacer); si no, la fecha anterior que tocaba.
+  function desmarcarPago(db, p, dueISO, volverA){
+    let back = volverA;
+    if(back === undefined){ const prev = prevOccurrence(p, parseISO(dueISO)); back = prev ? toISO(prev) : null; }
+    const hid = p.id + '_' + dueISO;
+    return db.collection('payments').doc(p.id).update({lastPaidDate: back}).then(()=>{
+      db.collection('history').doc(hid).delete().catch(()=>{});
+      db.collection('tickets').doc(hid).delete().catch(()=>{});
+    });
+  }
+
+  // Marca como pagado y avisa con dos botones: "Ticket" (adjuntar la foto del
+  // comprobante) y "Deshacer". Si falla al marcar, la promesa falla.
+  function pagarConAviso(db, p, dueISO){
+    return marcarPagado(db, p, dueISO).then(r=>{
+      aviso('Marcado como pagado', [
+        {label:'📎 Ticket', run: ()=> elegirFoto().then(f=>{
+          if(!f) return;
+          aviso('Guardando el ticket…');
+          return r.historial.then(()=> guardarTicket(db, r.historyId, f))
+            .then(()=> aviso('Ticket guardado'), ()=> aviso('No se pudo guardar el ticket.'));
+        })},
+        {label:'Deshacer', run: ()=> desmarcarPago(db, p, dueISO, r.antes)
+          .then(()=> aviso('Pago desmarcado'), ()=> aviso('No se pudo desmarcar. Intenta de nuevo.'))},
+      ]);
+      return r;
+    });
+  }
+
+  // ---------- Tickets (fotos de recibos) ----------
+  // tickets/{id de la entrada del Historial} → {data: foto comprimida}; la entrada lleva ticket:true.
+  function elegirFoto(){
+    // Se llama dentro del clic del usuario: el teléfono ofrece cámara o galería.
+    return new Promise(ok=>{
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.addEventListener('change', ()=> ok(input.files && input.files[0] || null));
+      input.click();
+    });
+  }
+  async function guardarTicket(db, historyId, file){
+    const {data} = await prepararImagen(file, 'ticket');
+    const u = firebase.auth().currentUser;
+    await db.collection('tickets').doc(historyId).set({data, by: u ? u.email : null, createdAt: new Date().toISOString()});
+    await db.collection('history').doc(historyId).update({ticket: true});
+  }
+  function borrarTicket(db, historyId){ return db.collection('tickets').doc(historyId).delete(); }
+  let visor = null;
+  async function verTicket(db, historyId){
+    if(!visor){
+      visor = document.createElement('div');
+      visor.className = 'modal-backdrop ticket-visor';
+      visor.hidden = true;
+      visor.innerHTML = '<div class="modal"><p class="muted" data-estado>Cargando el ticket…</p><img alt="Ticket"><div class="modal-actions"><button type="button" class="btn btn-primary" data-cerrar>Cerrar</button></div></div>';
+      visor.addEventListener('click', e=>{ if(e.target === visor || e.target.closest('[data-cerrar]')) visor.hidden = true; });
+      document.body.appendChild(visor);
+    }
+    const img = visor.querySelector('img'), estado = visor.querySelector('[data-estado]');
+    img.hidden = true; estado.hidden = false; estado.textContent = 'Cargando el ticket…';
+    visor.hidden = false;
+    try{
+      const s = await db.collection('tickets').doc(historyId).get();
+      if(!s.exists){ estado.textContent = 'No se encontró el ticket.'; return; }
+      img.src = s.data().data; img.hidden = false; estado.hidden = true;
+    }catch(_){ estado.textContent = 'No se pudo cargar el ticket.'; }
+  }
+
+  // ---------- Tipos de nota y fechas en el calendario ----------
+  // Una nota sin `tipo` es un gasto o pendiente (como las de antes). Las demás pueden
+  // llevar `fecha` (AAAA-MM-DD) y salen en la vista Mes; los cumpleaños se repiten cada año.
+  const TIPOS_NOTA = {
+    gasto:  {emoji:'💸', label:'Gasto o pendiente'},
+    cita:   {emoji:'📌', label:'Cita'},
+    cumple: {emoji:'🎂', label:'Cumpleaños'},
+    otro:   {emoji:'⭐', label:'Otra fecha'},
+  };
+  function tipoDe(n){ return TIPOS_NOTA[n.tipo] ? n.tipo : 'gasto'; }
+  function esFecha(n){ return tipoDe(n) !== 'gasto'; }
+  // Las notas con fecha que caen en ese mes: [{d, nota, tipo}] ordenadas por día.
+  function eventosDelMes(notes, y, m){
+    const out = [];
+    (notes || []).forEach(n=>{
+      if(!n.fecha || !/^\d{4}-\d{2}-\d{2}$/.test(n.fecha)) return;
+      const f = parseISO(n.fecha);
+      if(f.m !== m) return;
+      if(tipoDe(n) === 'cumple' ? f.y > y : f.y !== y) return;
+      out.push({d: Math.min(f.d, daysInMonth(y, m)), nota: n, tipo: tipoDe(n)});
+    });
+    return out.sort((a,b)=> a.d - b.d);
+  }
+  const MES_CORTO = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  // "🎂 3 nov" para mostrar en la tarjeta de una nota con fecha.
+  function fechaDeNota(n){
+    const t = TIPOS_NOTA[tipoDe(n)];
+    if(!esFecha(n)) return '';
+    if(!n.fecha) return t.emoji + ' ' + t.label;
+    const f = parseISO(n.fecha);
+    return t.emoji + ' ' + f.d + ' ' + MES_CORTO[f.m] + (tipoDe(n) !== 'cumple' && f.y !== new Date().getFullYear() ? ' ' + f.y : '');
+  }
+
+  // ---------- Aviso abajo de la pantalla ----------
+  // `acciones`: [{label, run}] botones como "Deshacer" o "Agregar ticket".
+  function aviso(msg, acciones){
+    let t = document.getElementById('toast');
+    if(!t){ t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+    t.textContent = msg;
+    (acciones || []).forEach(a=>{
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = a.label;
+      b.addEventListener('click', ()=>{ t.hidden = true; a.run(); });
+      t.appendChild(b);
+    });
+    t.hidden = false;
+    clearTimeout(aviso._t);
+    aviso._t = setTimeout(()=>{ t.hidden = true; }, acciones && acciones.length ? 8000 : 2600);
+  }
+
   const CATEGORIAS = {
     super:'Súper', comida:'Comida fuera', casa:'Casa', transporte:'Transporte', salud:'Salud',
     ocio:'Entretenimiento', personal:'Pagos fijos', suscripcion:'Suscripciones', negocio:'Negocio', otro:'Otro',
@@ -549,5 +757,9 @@
     return /^nemecio/i.test(email) ? '<span class="who a">N</span>' : '<span class="who b">MF</span>';
   }
 
-  window.Comun = { esCompartido, LLAVES_ANTERIORES, guardarEnHistorial, hoyISO, CATEGORIAS, conectar, quien, elegirIcono, iconoHTML, aplicarTema, diasEspeciales };
+  window.Comun = { esCompartido, LLAVES_ANTERIORES, guardarEnHistorial, hoyISO, CATEGORIAS, conectar, quien, elegirIcono, iconoHTML, aplicarTema, diasEspeciales,
+    fechas: {parseISO, toISO, cmp, daysInMonth, addDays, todayObj, monthAbs, occurrenceAtMonth, diffDays, weekdayMon},
+    nextDue, prevOccurrence, nextPayday, statusForDue, marcarPagado, desmarcarPago, pagarConAviso,
+    elegirFoto, guardarTicket, borrarTicket, verTicket, aviso,
+    TIPOS_NOTA, tipoDe, esFecha, eventosDelMes, fechaDeNota };
 })();

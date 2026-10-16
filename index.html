@@ -158,7 +158,7 @@ body{
 
 /* calendar */
 .cal-card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl); box-shadow:var(--card-shadow); padding:16px; }
-.cal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.cal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; min-height:40px; }
 .cal-label{ font-family:var(--font-body); font-weight:700; font-size:15px; }
 .cal-nav{ display:flex; gap:6px; }
 .cal-nav-btn{ width:40px; height:40px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
@@ -191,6 +191,11 @@ body{
 .cal-fiesta{ position:absolute; top:2px; right:3px; font-size:10px; line-height:1; }
 .cal-fiestas{ margin:12px 2px 0; display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12.5px; color:var(--ink-soft); }
 .cal-ic{ position:relative; display:inline-flex; }
+/* Fechas de notas en el calendario: el emoji del tipo (📌 cita, 🎂 cumpleaños…). */
+.cal-evento{ align-items:center; justify-content:center; width:14px; height:14px; border-radius:5px; font-size:9px; line-height:1;
+  background:var(--surface); box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.cal-evento.solo{ width:24px; height:24px; border-radius:8px; font-size:14px; }
+.evento-tile{ background:var(--surface-2); font-size:18px; }
 .cal-ic.is-paid > span{ opacity:.4; filter:grayscale(1); }
 .cal-ic.is-paid::after{ content:'✓'; position:absolute; right:-4px; bottom:-4px; width:13px; height:13px; border-radius:50%;
   background:var(--ok); color:var(--ok-ink); font-size:8.5px; font-weight:700; line-height:13px; text-align:center; }
@@ -233,16 +238,27 @@ body{
 .toast button{ background:none; border:none; padding:6px 2px; margin:-6px 0; color:var(--paper); font:700 13.5px var(--font-body); text-decoration:underline; cursor:pointer; }
 
 /* Computadora: Quincena con el resumen a la izquierda y las listas a la derecha;
-   Mes con el calendario a la izquierda y la lista del mes a la derecha. */
+   Mes con dos meses lado a lado (ver abajo). */
+.cal-pista{ display:none; }
 @media (min-width:960px){
   .tabs{ max-width:380px; }
   #viewQuincena{ display:grid; grid-template-columns:minmax(0,380px) minmax(0,1fr); gap:20px 28px; align-items:start; }
   #viewQuincena .col-lado{ position:sticky; top:72px; }
-  #viewCalendario{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:20px 28px; align-items:start; }
-  #viewCalendario .cal-card{ position:sticky; top:72px; }
+  /* Mes: dos meses lado a lado casi a todo lo ancho; la lista aparece abajo al tocar uno. */
+  body.vista-mes .page{ max-width:1600px; }
+  #viewCalendario{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px 24px; align-items:start; }
+  #viewCalendario .bucket, #viewCalendario .cal-pista{ grid-column:1 / -1; }
+  #viewCalendario .cal-card{ cursor:pointer; }
+  #viewCalendario .cal-card:hover{ border-color:var(--ink-faint); }
+  #viewCalendario .cal-card.is-sel{ outline:2px solid var(--accent); outline-offset:2px; }
+  .cal-cell{ aspect-ratio:1.2; }
+  .cal-pista{ display:block; margin:0; text-align:center; font-size:13px; color:var(--ink-faint); }
+  #viewCalendario:has(#calListBox:not([hidden])) .cal-pista{ display:none; }
   .cal-daynum{ font-size:12.5px; }
   .cal-icon-solo{ width:30px; height:30px; font-size:16px; }
   .cal-icon-mini{ width:18px; height:18px; font-size:10px; }
+  .cal-evento{ width:18px; height:18px; font-size:11px; }
+  .cal-evento.solo{ width:30px; height:30px; font-size:17px; }
   .foot{ text-align:left; }
 }
 </style>
@@ -285,7 +301,7 @@ body{
   </section>
 
   <section class="view" id="viewCalendario" hidden>
-    <div class="cal-card">
+    <div class="cal-card" id="calCard1">
       <div class="cal-header">
         <span class="cal-label" id="calLabel">—</span>
         <div class="cal-nav">
@@ -297,7 +313,14 @@ body{
       <div class="cal-grid" id="calGrid"></div>
       <p class="cal-fiestas" id="calFiestas" hidden></p>
     </div>
-    <div class="bucket">
+    <div class="cal-card" id="calCard2" hidden>
+      <div class="cal-header"><span class="cal-label" id="calLabel2">—</span></div>
+      <div class="cal-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
+      <div class="cal-grid" id="calGrid2"></div>
+      <p class="cal-fiestas" id="calFiestas2" hidden></p>
+    </div>
+    <p class="cal-pista">Toca un mes para ver su lista de pagos.</p>
+    <div class="bucket" id="calListBox">
       <div class="bucket-head"><h2 id="calListTitle">Pagos del mes</h2><span class="bucket-total" id="calListTotal">—</span></div>
       <ul class="payment-list" id="calList"><li class="empty-note">Cargando…</li></ul>
     </div>
@@ -465,24 +488,8 @@ body{
 (function(){
   "use strict";
 
-  // ---------- date helpers (plain {y,m,d}, m is 0-indexed) ----------
-  function parseISO(s){ const p=s.split('-').map(Number); return {y:p[0], m:p[1]-1, d:p[2]}; }
-  function toISO(o){ return o.y.toString().padStart(4,'0')+'-'+(o.m+1).toString().padStart(2,'0')+'-'+o.d.toString().padStart(2,'0'); }
-  function toUTCms(o){ return Date.UTC(o.y,o.m,o.d); }
-  function cmp(a,b){ return toUTCms(a)-toUTCms(b); }
-  function daysInMonth(y,m){ return new Date(Date.UTC(y,m+1,0)).getUTCDate(); }
-  function addDays(o,n){ const dt=new Date(toUTCms(o)+n*86400000); return {y:dt.getUTCFullYear(), m:dt.getUTCMonth(), d:dt.getUTCDate()}; }
-  function todayObj(){ const now=new Date(); return {y:now.getFullYear(), m:now.getMonth(), d:now.getDate()}; }
-  function monthAbs(o){ return o.y*12+o.m; }
-  function fromMonthAbs(abs){ return {y:Math.floor(abs/12), m:((abs%12)+12)%12}; }
-  function occurrenceAtMonth(abs, day, lastDay){
-    const {y,m}=fromMonthAbs(abs);
-    const dim=daysInMonth(y,m);
-    const d = lastDay ? dim : Math.min(day||1,dim);
-    return {y,m,d};
-  }
-  function diffDays(a,b){ return Math.round((toUTCms(a)-toUTCms(b))/86400000); }
-  function weekdayMon(o){ return (new Date(Date.UTC(o.y,o.m,o.d)).getUTCDay()+6)%7; } // 0=Mon..6=Sun
+  // ---------- date helpers (shared, see comun.js) ----------
+  const {parseISO, toISO, cmp, daysInMonth, addDays, todayObj, monthAbs, occurrenceAtMonth, diffDays, weekdayMon} = Comun.fechas;
 
   const WEEKDAY = ['dom','lun','mar','mié','jue','vie','sáb'];
   const MONTH = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -494,64 +501,8 @@ body{
   }
   const money = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN', maximumFractionDigits:0});
 
-  // ---------- recurrence engine ----------
-  function nextMonthly(rule, today){
-    const anchor=parseISO(rule.anchorDate);
-    const k=rule.monthsInterval||1;
-    const anchorAbs=monthAbs(anchor);
-    const todayAbs=monthAbs(today);
-    let steps=Math.ceil((todayAbs-anchorAbs)/k);
-    if(steps<0) steps=0;
-    let candAbs=anchorAbs+steps*k;
-    let cand=occurrenceAtMonth(candAbs, rule.day, rule.lastDayOfMonth);
-    let guard=0;
-    while(cmp(cand,today)<0 && guard<60){ candAbs+=k; cand=occurrenceAtMonth(candAbs, rule.day, rule.lastDayOfMonth); guard++; }
-    return cand;
-  }
-  function nextIntervalDays(rule, today){
-    const anchor=parseISO(rule.anchorDate);
-    const n=rule.intervalDays;
-    const dd=diffDays(today, anchor);
-    let k=Math.ceil(dd/n);
-    if(k<0) k=0;
-    return addDays(anchor, k*n);
-  }
-  function rawNext(rule, today){
-    if(rule.recurrenceType==='monthly') return nextMonthly(rule, today);
-    if(rule.recurrenceType==='interval_days') return nextIntervalDays(rule, today);
-    return parseISO(rule.anchorDate);
-  }
-  // La primera fecha que todavía no se ha pagado, aunque ya haya pasado: así un pago
-  // que se olvidó marcar aparece como vencido (igual que en la vista del mes) en vez
-  // de saltar solo al mes siguiente. Sin pagos marcados, se cuenta desde que se creó.
-  function nextDue(payment, today){
-    if(payment.recurrenceType==='one_time') return parseISO(payment.anchorDate);
-    let from = today;
-    if(payment.lastPaidDate) from = addDays(parseISO(payment.lastPaidDate),1);
-    else if(payment.createdAt) from = parseISO(String(payment.createdAt).slice(0,10));
-    return rawNext(payment, from);
-  }
-  // La fecha que tocaba antes de `date` (null si no hay), para desmarcar un pago.
-  function prevOccurrence(p, date){
-    if(p.recurrenceType==='monthly'){
-      const abs = monthAbs(date) - (p.monthsInterval||1);
-      if(abs < monthAbs(parseISO(p.anchorDate))) return null;
-      return occurrenceAtMonth(abs, p.day, p.lastDayOfMonth);
-    }
-    if(p.recurrenceType==='interval_days'){
-      const d = addDays(date, -p.intervalDays);
-      return cmp(d, parseISO(p.anchorDate)) < 0 ? null : d;
-    }
-    return null;
-  }
-  function nextPayday(payroll, today){
-    const anchor=parseISO(payroll.anchorDate);
-    const n=payroll.intervalDays||14;
-    const dd=diffDays(today, anchor);
-    let k=Math.floor(dd/n)+1;
-    if(k<0) k=0;
-    return addDays(anchor, k*n);
-  }
+  // ---------- recurrence engine (shared, see comun.js) ----------
+  const {nextDue, nextPayday, statusForDue} = Comun;
   function cadenceLabel(p){
     if(p.recurrenceType==='one_time') return 'Único';
     if(p.recurrenceType==='interval_days') return 'Cada '+p.intervalDays+' días';
@@ -578,7 +529,7 @@ body{
   const applyMonthTheme = (m) => Comun.aplicarTema(m);
 
   // ---------- state ----------
-  const state = { payments:null, payroll:null, db:null, editingId:null, calView:todayObj(), activeTab:'quincena', formIconDataUri:null };
+  const state = { payments:null, payroll:null, db:null, editingId:null, calView:todayObj(), calSel:null, notes:[], activeTab:'quincena', formIconDataUri:null };
 
   const els = {
     summary: document.getElementById('summary'),
@@ -599,20 +550,8 @@ body{
     calListTitle: document.getElementById('calListTitle'),
   };
 
-  // Con `action` ({label, run}) el aviso lleva un botón (p. ej. "Deshacer") y dura más.
-  function showToast(msg, action){
-    els.toast.textContent = msg;
-    if(action){
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = action.label;
-      b.addEventListener('click', ()=>{ els.toast.hidden = true; action.run(); });
-      els.toast.appendChild(b);
-    }
-    els.toast.hidden = false;
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(()=>{ els.toast.hidden = true; }, action ? 7000 : 2600);
-  }
+  // Con `acciones` ([{label, run}]) el aviso lleva botones como "Deshacer" (ver comun.js).
+  const showToast = (msg, acciones) => Comun.aviso(msg, acciones);
   function escapeHTML(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
@@ -627,6 +566,7 @@ body{
     const isQ = tab==='quincena';
     viewQuincena.hidden = !isQ;
     viewCalendario.hidden = isQ;
+    document.body.classList.toggle('vista-mes', !isQ);
     tabQuincenaBtn.classList.toggle('is-active', isQ);
     tabCalendarioBtn.classList.toggle('is-active', !isQ);
     tabQuincenaBtn.setAttribute('aria-selected', isQ);
@@ -670,15 +610,6 @@ body{
 
     renderList(els.urgentList, urgent, today);
     renderList(els.waitingList, waiting, today, paydayAfter);
-  }
-
-  function statusForDue(dueDate, today){
-    const dd = diffDays(dueDate, today);
-    if(dd < 0) return {label:'Venció hace '+(-dd)+' día'+(-dd===1?'':'s'), cls:'critical'};
-    if(dd === 0) return {label:'Hoy', cls:'critical'};
-    if(dd === 1) return {label:'Mañana', cls:'warn'};
-    if(dd <= 3) return {label:'en '+dd+' días', cls:'warn'};
-    return {label:'en '+dd+' días', cls:'neutral'};
   }
 
   function miniIconHTML(p, variant){
@@ -773,15 +704,18 @@ body{
     return {label:'en '+dd+' días', cls:'neutral'};
   }
 
-  function renderCalendar(){
-    if(!state.payments) return;
-    const {y,m} = state.calView;
-    applyMonthTheme(m);
-    els.calLabel.textContent = MONTH_LONG[m] + ' ' + y;
+  // En la computadora la vista Mes muestra dos meses lado a lado y la lista solo
+  // aparece al elegir uno; en el teléfono, un mes con su lista.
+  const dosMeses = window.matchMedia('(min-width:960px)');
+  function siguienteMes({y,m}){ return m===11 ? {y:y+1, m:0} : {y, m:m+1}; }
 
+  function pintarMes(y, m, labelEl, gridEl, fiestasEl){
+    labelEl.textContent = MONTH_LONG[m] + ' ' + y;
     const occ = computeMonthOccurrences(y,m);
     const byDay = {};
     occ.forEach(o=>{ (byDay[o.date.d] = byDay[o.date.d]||[]).push(o); });
+    const evByDay = {};
+    Comun.eventosDelMes(state.notes, y, m).forEach(ev=>{ (evByDay[ev.d] = evByDay[ev.d]||[]).push(ev); });
     const highlightByDay = {};
     occ.forEach(o=>{
       const p = o.payment;
@@ -794,23 +728,25 @@ body{
     const firstW = weekdayMon({y,m,d:1});
     const dim = daysInMonth(y,m);
     const today = todayObj();
+    // Lo ya pagado se ve apagado y con una palomita.
+    const iconFor = (o, variant) => {
+      const paid = occurrenceStatus(o.payment, o.date, today).cls === 'ok';
+      return `<span class="cal-ic${paid?' is-paid':''}">${miniIconHTML(o.payment, variant)}</span>`;
+    };
     let cells='';
     for(let i=0;i<firstW;i++) cells += '<div class="cal-cell is-blank"></div>';
     for(let d=1; d<=dim; d++){
       const isToday = today.y===y && today.m===m && today.d===d;
       const dayOcc = byDay[d]||[];
-      // Lo ya pagado se ve apagado y con una palomita.
-      const iconFor = (o, variant) => {
-        const paid = occurrenceStatus(o.payment, o.date, today).cls === 'ok';
-        return `<span class="cal-ic${paid?' is-paid':''}">${miniIconHTML(o.payment, variant)}</span>`;
-      };
+      // Pagos y fechas de notas (citas, cumpleaños…) comparten el día: se ven hasta 3 íconos.
+      const evIcons = (evByDay[d]||[]).map(ev=> `<span class="cal-ic cal-evento" title="${escapeHTML(Comun.TIPOS_NOTA[ev.tipo].label + ': ' + ev.nota.text)}">${Comun.TIPOS_NOTA[ev.tipo].emoji}</span>`);
+      const total = dayOcc.length + evIcons.length;
       let icons='';
-      if(dayOcc.length===1){
-        icons = iconFor(dayOcc[0], 'solo');
-      } else if(dayOcc.length>1){
-        const shown = dayOcc.slice(0,3);
-        icons = shown.map(o=>iconFor(o,'mini')).join('');
-        if(dayOcc.length>3) icons += `<span class="cal-more">+${dayOcc.length-3}</span>`;
+      if(total===1){
+        icons = dayOcc.length ? iconFor(dayOcc[0], 'solo') : evIcons[0].replace('cal-evento', 'cal-evento solo');
+      } else if(total>1){
+        icons = dayOcc.map(o=>iconFor(o,'mini')).concat(evIcons).slice(0,3).join('');
+        if(total>3) icons += `<span class="cal-more">+${total-3}</span>`;
       }
 
       let cls = 'cal-cell';
@@ -829,17 +765,27 @@ body{
       cells += `<div class="${cls}"${styleAttr}${titleAttr}>${fiesta}<span class="cal-daynum">${d}</span><span class="cal-dots">${icons}</span></div>`;
     }
     const lista = Object.keys(fiestas).map(Number).sort((a,b)=>a-b);
-    const fiestasEl = document.getElementById('calFiestas');
     fiestasEl.hidden = !lista.length;
     fiestasEl.innerHTML = lista.map(d=>`<span>${fiestas[d][0]} ${d} ${escapeHTML(fiestas[d][1])}</span>`).join('');
-    const totalCells = firstW + dim;
-    const trailing = (7 - (totalCells % 7)) % 7;
+    const trailing = (7 - ((firstW + dim) % 7)) % 7;
     for(let i=0;i<trailing;i++) cells += '<div class="cal-cell is-blank"></div>';
-    els.calGrid.innerHTML = cells;
+    gridEl.innerHTML = cells;
+  }
 
-    els.calListTitle.textContent = 'Pagos de ' + MONTH_LONG[m].toLowerCase();
+  function pintarLista(y, m){
+    const occ = computeMonthOccurrences(y,m);
+    const today = todayObj();
+    els.calListTitle.textContent = MONTH_LONG[m];
+    // Primero las fechas de las notas (citas, cumpleaños…), luego los pagos.
+    const eventos = Comun.eventosDelMes(state.notes, y, m);
+    const fechasHTML = eventos.length ? '<li class="divider-later">Fechas del mes</li>' + eventos.map(ev=>{
+      const t = Comun.TIPOS_NOTA[ev.tipo];
+      return `<li class="payment-row evento-row"><span class="icon-tile evento-tile">${t.emoji}</span>
+        <span class="row-main"><span class="row-name">${escapeHTML(ev.nota.text)}</span><span class="row-cad">${t.label}${ev.nota.status!=='open' ? ' · listo' : ''}</span></span>
+        <span class="row-right"><span class="row-status neutral">${ev.d} ${MONTH[m]}</span></span></li>`;
+    }).join('') + '<li class="divider-later">Pagos</li>' : '';
     if(occ.length===0){
-      els.calList.innerHTML = '<li class="empty-note">Sin pagos este mes.</li>';
+      els.calList.innerHTML = fechasHTML + '<li class="empty-note">Sin pagos este mes.</li>';
       els.calListTotal.textContent = money.format(0);
       return;
     }
@@ -861,7 +807,7 @@ body{
       }
     });
     const pct = total ? Math.round(paidSum/total*100) : 0;
-    els.calList.innerHTML =
+    els.calList.innerHTML = fechasHTML +
       `<li class="month-progress">
         <div class="mp-bar"><span style="width:${pct}%"></span></div>
         <div class="mp-nums"><span>Pagado <b class="money">${money.format(paidSum)}</b></span><span>Falta <b class="money">${money.format(total-paidSum)}</b></span></div>
@@ -870,6 +816,39 @@ body{
       + (paidHtml ? '<li class="divider-later">Ya pagado</li>' + paidHtml : '');
     els.calListTotal.textContent = money.format(total);
   }
+
+  function renderCalendar(){
+    if(!state.payments) return;
+    const uno = {y:state.calView.y, m:state.calView.m};
+    const dos = siguienteMes(uno);
+    const ancho = dosMeses.matches;
+    applyMonthTheme(uno.m);
+    pintarMes(uno.y, uno.m, els.calLabel, els.calGrid, document.getElementById('calFiestas'));
+    const card2 = document.getElementById('calCard2');
+    card2.hidden = !ancho;
+    if(ancho) pintarMes(dos.y, dos.m, document.getElementById('calLabel2'), document.getElementById('calGrid2'), document.getElementById('calFiestas2'));
+    // Qué mes muestra la lista: en el teléfono el que se ve; en la computadora, el que se tocó.
+    const mismo = (a, b) => a && b && a.y===b.y && a.m===b.m;
+    let sel = ancho ? state.calSel : uno;
+    if(ancho && !mismo(sel, uno) && !mismo(sel, dos)) sel = state.calSel = null;
+    document.getElementById('calCard1').classList.toggle('is-sel', ancho && mismo(sel, uno));
+    card2.classList.toggle('is-sel', ancho && mismo(sel, dos));
+    document.getElementById('calListBox').hidden = !sel;
+    if(sel) pintarLista(sel.y, sel.m);
+  }
+  // En la computadora, tocar un mes muestra (o esconde) su lista.
+  ['calCard1','calCard2'].forEach((id, i)=>{
+    document.getElementById(id).addEventListener('click', e=>{
+      if(!dosMeses.matches || e.target.closest('.cal-nav')) return;
+      const uno = {y:state.calView.y, m:state.calView.m};
+      const elegido = i===0 ? uno : siguienteMes(uno);
+      const ya = state.calSel && state.calSel.y===elegido.y && state.calSel.m===elegido.m;
+      state.calSel = ya ? null : elegido;
+      renderCalendar();
+      if(state.calSel) document.getElementById('calListBox').scrollIntoView({behavior:'smooth', block:'nearest'});
+    });
+  });
+  dosMeses.addEventListener('change', ()=>{ if(state.activeTab!=='quincena') renderCalendar(); });
 
   document.getElementById('calPrev').addEventListener('click', ()=>{
     let {y,m} = state.calView; m--; if(m<0){ m=11; y--; }
@@ -891,42 +870,22 @@ body{
     else if(action==='unpay') unmarkPaid(id, btn.dataset.due);
   });
 
+  // Marca el pago y ofrece "Ticket" y "Deshacer" en el aviso (ver comun.js).
   function markPaid(id, dueISO, btn){
-    if(!state.db) return;
-    // Store the DUE DATE just covered (not today's date) — that's what lets the
-    // recurrence engine recognize this cycle as settled whether you pay early,
-    // right on time, or late, and correctly roll to the next occurrence.
-    const settledThrough = dueISO || toISO(todayObj());
     const p = state.payments.find(x=>x.id===id);
-    const before = p ? (p.lastPaidDate || null) : null;
-    state.db.collection('payments').doc(id).update({lastPaidDate: settledThrough}).then(()=>{
-      showToast('Marcado como pagado', {label:'Deshacer', run:()=> unmarkPaid(id, settledThrough, before)});
-      // Una entrada por pago y fecha: si se vuelve a marcar el mismo, no se duplica.
-      if(p) Comun.guardarEnHistorial(state.db, {
-        name: p.name, amount: p.amount, category: p.category, date: toISO(todayObj()),
-        dueDate: settledThrough, paymentId: id, source: 'calendario',
-      }, id + '_' + settledThrough).catch(()=>{});
-    }).catch(()=>{
+    if(!state.db || !p) return;
+    Comun.pagarConAviso(state.db, p, dueISO || toISO(todayObj())).catch(()=>{
       if(btn) btn.classList.remove('is-done');
       showToast('No se pudo guardar. Intenta de nuevo.');
     });
   }
 
-  // Quita la marca de pagado de la fecha `dueISO` y su registro en el Historial.
-  // `restoreTo` es la marca que había antes (al deshacer recién marcado); si no se
-  // sabe, vuelve a la fecha anterior que tocaba pagar.
-  function unmarkPaid(id, dueISO, restoreTo){
+  // Desmarca desde "Ya pagado" en la vista Mes: vuelve a la fecha anterior que tocaba.
+  function unmarkPaid(id, dueISO){
     const p = state.payments && state.payments.find(x=>x.id===id);
     if(!state.db || !p) return;
-    let back = restoreTo;
-    if(back === undefined){
-      const prev = prevOccurrence(p, parseISO(dueISO));
-      back = prev ? toISO(prev) : null;
-    }
-    state.db.collection('payments').doc(id).update({lastPaidDate: back}).then(()=>{
-      showToast('Pago desmarcado');
-      state.db.collection('history').doc(id + '_' + dueISO).delete().catch(()=>{});
-    }).catch(()=> showToast('No se pudo desmarcar. Intenta de nuevo.'));
+    Comun.desmarcarPago(state.db, p, dueISO).then(()=> showToast('Pago desmarcado'))
+      .catch(()=> showToast('No se pudo desmarcar. Intenta de nuevo.'));
   }
 
   // Eliminar desde la ficha del pago: el primer toque pide confirmar, el segundo elimina.
@@ -1194,6 +1153,12 @@ body{
       render();
       if(state.activeTab==='calendario') renderCalendar();
     }, ()=>{ showToast('No se pudo conectar con la base de datos.'); });
+
+    // Las notas con fecha (citas, cumpleaños…) salen en la vista Mes.
+    db.collection('notes').onSnapshot(qs=>{
+      state.notes = qs.docs.map(d=> Object.assign({id:d.id}, d.data()));
+      if(state.activeTab==='calendario') renderCalendar();
+    }, ()=>{});
 
     db.collection('payments').onSnapshot(qs=>{
       state.payments = qs.docs.map(d=> Object.assign({id:d.id}, d.data()));

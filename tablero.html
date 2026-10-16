@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tablero</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="estilo.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="acceso.js"></script>
+<script src="comun.js"></script>
+<style>
+/* El tablero de los dos: arriba el resumen, abajo tres columnas con tarjetas tipo nota de corcho. */
+.resumen{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; }
+.res{ display:flex; flex-direction:column; gap:2px; padding:12px 14px; border-radius:var(--radius-lg); background:var(--surface);
+  border:1px solid var(--border); box-shadow:var(--card-shadow); color:inherit; text-decoration:none; min-width:0; }
+.res:hover{ border-color:var(--ink-faint); }
+.res-lbl{ font-size:12px; color:var(--ink-soft); }
+.res-val{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600; font-size:clamp(17px,4.8vw,24px); letter-spacing:-0.02em; white-space:nowrap; }
+.res.urgente .res-val{ color:var(--critical); }
+.res.ok .res-val{ color:var(--ok); }
+
+/* En el teléfono las columnas se deslizan de lado; en la computadora van una junto a otra. */
+.tablero{ display:grid; grid-auto-flow:column; grid-auto-columns:minmax(272px, 86%); gap:14px; overflow-x:auto;
+  scroll-snap-type:x mandatory; margin:0 -16px; padding:4px 16px 12px; scroll-padding-inline:16px; align-items:start; }
+.col{ scroll-snap-align:start; display:flex; flex-direction:column; gap:12px; min-width:0;
+  background:color-mix(in srgb, var(--surface-2) 70%, transparent); border:1px solid var(--border); border-radius:var(--radius-xl); padding:12px; }
+.col-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:2px 4px; }
+.col-head h2{ font-family:var(--font-display); font-weight:700; font-size:17px; margin:0; }
+.col-head .cuenta{ font-size:12.5px; color:var(--ink-faint); font-weight:600; }
+.col-pie{ text-align:center; font-size:12.5px; }
+.col-pie a{ color:var(--ink-soft); }
+.lista{ display:flex; flex-direction:column; gap:10px; }
+.vacio{ padding:18px 6px; text-align:center; color:var(--ink-faint); font-size:13.5px; }
+
+/* Tarjetas: un poco ladeadas, como notas pegadas. */
+.tarjeta{ position:relative; border-radius:6px 6px 14px 6px; padding:12px 12px 10px; background:var(--surface);
+  box-shadow:0 1px 1px rgba(0,0,0,.06), 0 4px 10px rgba(0,0,0,.07); display:flex; flex-direction:column; gap:6px; transform:rotate(-0.6deg); }
+.tarjeta:nth-child(even){ transform:rotate(0.7deg); }
+.tarjeta.de-a{ background:var(--person-a-ink); }
+.tarjeta.de-b{ background:var(--person-b-ink); }
+.tarjeta-top{ display:flex; gap:10px; align-items:flex-start; }
+.tarjeta-txt{ flex:1; min-width:0; font-size:14.5px; font-weight:500; white-space:pre-wrap; overflow-wrap:anywhere; }
+.tarjeta-monto{ flex:0 0 auto; font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600; font-size:14.5px; }
+.tarjeta-meta{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--ink-soft); }
+.tarjeta-acc{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.tarjeta .btn-small{ background:color-mix(in srgb, var(--surface) 75%, transparent); }
+.tarjeta .icon-tile{ flex:0 0 auto; width:32px; height:32px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; overflow:hidden; }
+.tarjeta .icon-tile img{ width:100%; height:100%; object-fit:cover; }
+.estado{ font-size:11.5px; font-weight:600; padding:1px 8px; border-radius:999px; white-space:nowrap; }
+.estado.critical{ color:var(--critical); background:var(--critical-ink); }
+.estado.warn{ color:var(--warn); background:var(--warn-ink); }
+.estado.neutral{ color:var(--ink-soft); background:var(--neutral-ink); }
+.pagar{ flex:0 0 auto; width:40px; height:40px; margin:-6px -4px -6px -8px; border:none; background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; border-radius:999px; }
+.pagar::before{ content:''; width:22px; height:22px; border-radius:50%; border:2px solid var(--ink-faint); box-sizing:border-box;
+  display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--ok-ink); }
+.pagar:hover::before{ border-color:var(--ok); content:'✓'; color:var(--ok); }
+.pagar.is-done::before{ content:'✓'; background:var(--ok); border-color:var(--ok); color:var(--ok-ink); }
+.pagar:focus-visible{ outline:2px solid var(--accent); outline-offset:-4px; }
+.add-nota{ display:flex; flex-direction:column; gap:8px; }
+.add-nota textarea{ min-height:52px; }
+.add-nota .row{ align-items:center; }
+.add-nota .row .btn{ flex:0 0 auto; }
+
+@media (min-width:960px){
+  body .page{ max-width:1280px; padding-left:32px; padding-right:32px; }
+  .tablero{ grid-auto-flow:row; grid-template-columns:repeat(3, minmax(0,1fr)); overflow:visible; margin:0; padding:4px 0 12px; align-items:start; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <h1>Tablero</h1>
+    <p>Lo de los dos en un solo lugar: lo que hay que hacer, lo que hay que pagar y lo que ya se pagó.</p>
+  </header>
+
+  <section class="resumen" aria-label="Resumen">
+    <a class="res urgente" href="index.html"><span class="res-lbl" id="resNominaLbl">Antes de la nómina</span><span class="res-val" id="resNomina">—</span></a>
+    <a class="res ok" href="historial.html"><span class="res-lbl" id="resPagadoLbl">Pagado este mes</span><span class="res-val" id="resPagado">—</span></a>
+    <a class="res" href="notas.html"><span class="res-lbl">Notas pendientes</span><span class="res-val" id="resNotas">—</span></a>
+  </section>
+
+  <section class="tablero">
+    <div class="col">
+      <div class="col-head"><h2>Pendientes</h2><span class="cuenta" id="cuentaNotas"></span></div>
+      <form class="add-nota" id="addNota" autocomplete="off">
+        <textarea id="notaTexto" placeholder="Apunta algo: súper 850, pagar el seguro…" required aria-label="Nueva nota"></textarea>
+        <div class="row"><select id="notaTipo" aria-label="Tipo de nota"></select><input type="date" id="notaFecha" aria-label="Fecha (opcional)"></div>
+        <div class="row"><input type="number" id="notaMonto" min="0" step="0.01" inputmode="decimal" placeholder="Monto (opcional)" aria-label="Monto"><button type="submit" class="btn btn-primary btn-small">Agregar</button></div>
+      </form>
+      <div class="lista" id="listaNotas"><div class="vacio">Cargando…</div></div>
+      <p class="col-pie"><a href="notas.html">Ver todas las notas</a></p>
+    </div>
+
+    <div class="col">
+      <div class="col-head"><h2>Por pagar</h2><span class="cuenta" id="cuentaPagos"></span></div>
+      <div class="lista" id="listaPagos"><div class="vacio">Cargando…</div></div>
+      <p class="col-pie"><a href="index.html">Ver el calendario</a></p>
+    </div>
+
+    <div class="col">
+      <div class="col-head"><h2>Ya pagado</h2><button type="button" class="btn btn-small" id="addGasto">+ Gasto</button></div>
+      <div class="lista" id="listaPagado"><div class="vacio">Cargando…</div></div>
+      <p class="col-pie"><a href="historial.html">Ver el historial</a></p>
+    </div>
+  </section>
+</div>
+
+<div class="modal-backdrop" id="gastoBackdrop" hidden>
+  <form class="modal" id="gastoForm">
+    <h2 id="gastoTitulo">Agregar gasto</h2>
+    <div class="field"><label for="g-name">Concepto</label><input type="text" id="g-name" required placeholder="Ej. Súper, gasolina, farmacia…"></div>
+    <div class="row">
+      <div class="field"><label for="g-amount">Monto (MXN)</label><input type="number" id="g-amount" min="0" step="0.01" inputmode="decimal" required></div>
+      <div class="field"><label for="g-date">Fecha</label><input type="date" id="g-date" required></div>
+    </div>
+    <div class="field"><label for="g-category">Categoría</label><select id="g-category"></select></div>
+    <div class="field"><label for="g-ticket">Foto del ticket (opcional)</label><input type="file" id="g-ticket" accept="image/*"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary" id="gastoGuardar">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(function(){
+  "use strict";
+  const money = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN', maximumFractionDigits:0});
+  const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const {parseISO, toISO, cmp, todayObj} = Comun.fechas;
+  const db = Comun.conectar();
+  const $ = id => document.getElementById(id);
+  const st = {notes:null, payments:null, payroll:null, history:null};
+  let notaActual = null;
+
+  function escapeHTML(t){ return String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function fecha(o){ return o.d + ' ' + MES[o.m]; }
+  function me(){ const u = firebase.auth().currentUser; return u ? u.email : null; }
+  // Mismo criterio que Notas: el color de la tarjeta es el de quien la escribió.
+  function claseDe(email){ return !email ? '' : /^nemecio/i.test(email) ? 'de-a' : 'de-b'; }
+  // "Súper 850" → 850; "pagar $1,250.50" → 1250.5
+  function montoDelTexto(t){
+    const m = String(t).match(/\$?\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?/);
+    return m ? Number(m[1].replace(/,/g,'') + (m[2] ? '.'+m[2] : '')) : null;
+  }
+  function nombreDelTexto(t){
+    const limpio = String(t).replace(/\$?\s?(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?/, '').replace(/\s{2,}/g,' ').trim();
+    return (limpio || String(t)).split('\n')[0].slice(0, 80);
+  }
+
+  $('notaTipo').innerHTML = Object.entries(Comun.TIPOS_NOTA).map(([k,t])=>`<option value="${k}">${t.emoji} ${t.label}</option>`).join('');
+  $('g-category').innerHTML =Object.entries(Comun.CATEGORIAS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+
+  function render(){
+    const hoy = todayObj();
+    // Pendientes
+    if(st.notes){
+      const open = st.notes.filter(n=>n.status==='open');
+      $('cuentaNotas').textContent = open.length || '';
+      $('resNotas').textContent = open.length;
+      $('listaNotas').innerHTML = open.length ? open.map(n=>`<article class="tarjeta ${claseDe(n.by)}" data-nota="${n.id}">
+          <div class="tarjeta-top"><div class="tarjeta-txt">${escapeHTML(n.text)}</div>${n.amount!=null ? `<span class="tarjeta-monto">${money.format(n.amount)}</span>` : ''}</div>
+          <div class="tarjeta-meta">${Comun.esFecha(n) ? `<span class="tag accent">${Comun.fechaDeNota(n)}</span>` : ''}${Comun.quien(n.by)}<span>${n.createdAt ? fecha(parseISO(String(n.createdAt).slice(0,10))) : ''}</span></div>
+          <div class="tarjeta-acc">${Comun.esFecha(n)
+            ? '<button type="button" class="btn btn-small" data-act="listo">Listo</button>'
+            : '<button type="button" class="btn btn-small" data-act="pagada">Ya se pagó</button>'}<button type="button" class="btn-link" data-act="borrar">Borrar</button></div>
+        </article>`).join('') : '<div class="vacio">Nada pendiente. Apunten aquí lo que haya que hacer o pagar.</div>';
+    }
+    // Por pagar: lo que vence antes de la próxima nómina (y lo vencido), igual que en la Quincena.
+    if(st.payments && st.payroll){
+      const payday = Comun.nextPayday(st.payroll, hoy);
+      const lista = st.payments.filter(p => !(p.recurrenceType==='one_time' && p.lastPaidDate))
+        .map(p => Object.assign({}, p, {_due: Comun.nextDue(p, hoy)}))
+        .filter(p => cmp(p._due, payday) <= 0)
+        .sort((a,b)=> cmp(a._due, b._due));
+      const total = lista.reduce((s,p)=> s + Number(p.amount||0), 0);
+      $('resNominaLbl').textContent = 'Antes de la nómina del ' + fecha(payday);
+      $('resNomina').textContent = money.format(total);
+      $('cuentaPagos').textContent = lista.length || '';
+      $('listaPagos').innerHTML = lista.length ? lista.map(p=>{
+        const s = Comun.statusForDue(p._due, hoy);
+        return `<article class="tarjeta">
+          <div class="tarjeta-top">
+            <button type="button" class="pagar" data-pagar="${p.id}" data-due="${toISO(p._due)}" title="Marcar como pagado" aria-label="Marcar ${escapeHTML(p.name)} como pagado"></button>
+            ${Comun.iconoHTML(p, 'icon-tile')}
+            <div class="tarjeta-txt">${escapeHTML(p.name)}</div><span class="tarjeta-monto">${money.format(Number(p.amount||0))}</span>
+          </div>
+          <div class="tarjeta-meta"><span class="estado ${s.cls}">${s.label}</span><span>${fecha(p._due)}</span></div>
+        </article>`;
+      }).join('') : '<div class="vacio">Nada por pagar antes de la nómina.</div>';
+    }
+    // Ya pagado este mes
+    if(st.history){
+      const k = toISO(hoy).slice(0,7);
+      const lista = st.history.filter(e=> String(e.date).startsWith(k)).sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+      $('resPagadoLbl').textContent = 'Pagado en ' + MESES[hoy.m];
+      $('resPagado').textContent = money.format(lista.reduce((s,e)=> s + Number(e.amount||0), 0));
+      $('listaPagado').innerHTML = lista.length ? lista.map(e=>{
+        const d = parseISO(String(e.date));
+        return `<article class="tarjeta ${claseDe(e.by)}">
+          <div class="tarjeta-top"><div class="tarjeta-txt">${escapeHTML(e.name || 'Sin nombre')}</div><span class="tarjeta-monto">${money.format(Number(e.amount||0))}</span></div>
+          <div class="tarjeta-meta">${Comun.quien(e.by)}<span>${fecha(d)}</span><span class="tag">${escapeHTML(Comun.CATEGORIAS[e.category] || 'Otro')}</span></div>
+          <div class="tarjeta-acc">${e.ticket
+            ? `<button type="button" class="btn btn-small" data-ver="${e.id}">📎 Ver ticket</button>`
+            : `<button type="button" class="btn-link" data-ticket="${e.id}">+ Ticket</button>`}</div>
+        </article>`;
+      }).join('') : '<div class="vacio">Todavía no hay gastos este mes.</div>';
+    }
+  }
+
+  // Nueva nota
+  $('addNota').addEventListener('submit', e=>{
+    e.preventDefault();
+    const text = $('notaTexto').value.trim();
+    if(!text) return;
+    const typed = $('notaMonto').value;
+    const tipo = $('notaTipo').value;
+    // El monto se toma del texto solo en gastos: en "cumple de mamá 3 nov" el 3 es el día.
+    const amount = typed !== '' ? Number(typed) : tipo === 'gasto' ? montoDelTexto(text) : null;
+    const nota = {text, amount: amount ?? null, status:'open', by: me(), createdAt: new Date().toISOString()};
+    if(tipo !== 'gasto') nota.tipo = tipo;
+    if($('notaFecha').value) nota.fecha = $('notaFecha').value;
+    db.collection('notes').add(nota)
+      .then(()=>{ $('notaTexto').value=''; $('notaMonto').value=''; $('notaFecha').value=''; $('notaTipo').value='gasto'; })
+      .catch(()=> Comun.aviso('No se pudo guardar la nota.'));
+  });
+
+  function abrirGasto(nota){
+    notaActual = nota || null;
+    $('gastoForm').reset();
+    $('gastoTitulo').textContent = nota ? 'Pasar al historial' : 'Agregar gasto';
+    $('g-name').value = nota ? nombreDelTexto(nota.text) : '';
+    $('g-amount').value = nota && nota.amount != null ? nota.amount : '';
+    $('g-date').value = Comun.hoyISO();
+    $('g-category').value = nota ? 'casa' : 'super';
+    $('gastoBackdrop').hidden = false;
+  }
+  $('addGasto').addEventListener('click', ()=> abrirGasto(null));
+
+  document.addEventListener('click', e=>{
+    if(e.target.matches('[data-close]') || e.target === $('gastoBackdrop')){ $('gastoBackdrop').hidden = true; return; }
+    const card = e.target.closest('[data-nota]');
+    const act = e.target.closest('[data-act]');
+    if(card && act){
+      const n = st.notes.find(x=>x.id===card.dataset.nota);
+      if(!n) return;
+      if(act.dataset.act==='pagada') abrirGasto(n);
+      else if(act.dataset.act==='listo') db.collection('notes').doc(n.id).update({status:'done'}).catch(()=> Comun.aviso('No se pudo guardar.'));
+      else if(act.dataset.act==='borrar' && confirm('¿Borrar esta nota?')) db.collection('notes').doc(n.id).delete().catch(()=> Comun.aviso('No se pudo borrar.'));
+      return;
+    }
+    const pagar = e.target.closest('[data-pagar]');
+    if(pagar){
+      const p = st.payments.find(x=>x.id===pagar.dataset.pagar);
+      if(!p) return;
+      pagar.classList.add('is-done');
+      Comun.pagarConAviso(db, p, pagar.dataset.due).catch(()=>{ pagar.classList.remove('is-done'); Comun.aviso('No se pudo guardar. Intenta de nuevo.'); });
+      return;
+    }
+    const ver = e.target.closest('[data-ver]');
+    if(ver){ Comun.verTicket(db, ver.dataset.ver); return; }
+    const tk = e.target.closest('[data-ticket]');
+    if(tk){
+      const id = tk.dataset.ticket;
+      Comun.elegirFoto().then(f=>{
+        if(!f) return;
+        Comun.aviso('Guardando el ticket…');
+        return Comun.guardarTicket(db, id, f).then(()=> Comun.aviso('Ticket guardado'));
+      }).catch(()=> Comun.aviso('No se pudo guardar el ticket.'));
+    }
+  });
+
+  $('gastoForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const n = notaActual;
+    const id = n ? 'nota_' + n.id : db.collection('history').doc().id;
+    const file = $('g-ticket').files && $('g-ticket').files[0];
+    $('gastoGuardar').disabled = true;
+    try{
+      await Comun.guardarEnHistorial(db, {
+        name: $('g-name').value.trim(), amount: Number($('g-amount').value), date: $('g-date').value,
+        category: $('g-category').value, source: n ? 'nota' : 'manual',
+        ...(n ? {notes: n.text, noteId: n.id} : {}),
+      }, id);
+      if(n) await db.collection('notes').doc(n.id).update({status:'history', linkId: id});
+      $('gastoBackdrop').hidden = true;
+      if(file){
+        Comun.aviso('Guardando el ticket…');
+        await Comun.guardarTicket(db, id, file).then(()=> Comun.aviso('Gasto y ticket guardados'), ()=> Comun.aviso('El gasto se guardó, pero el ticket no. Intenta de nuevo con "+ Ticket".'));
+      } else Comun.aviso('Gasto guardado');
+    }catch(err){ Comun.aviso('No se pudo guardar.'); }
+    finally{ $('gastoGuardar').disabled = false; }
+  });
+
+  requireAccess(()=>{
+    const fallo = ()=> Comun.aviso('No se pudo conectar con la base de datos.');
+    db.collection('notes').onSnapshot(qs=>{
+      st.notes = qs.docs.map(d=>Object.assign({id:d.id}, d.data())).sort((a,b)=> String(b.createdAt).localeCompare(String(a.createdAt)));
+      render();
+    }, fallo);
+    db.collection('payments').onSnapshot(qs=>{ st.payments = qs.docs.map(d=>Object.assign({id:d.id}, d.data())); render(); }, fallo);
+    db.doc('config/payroll').onSnapshot(s=>{ st.payroll = s.exists ? s.data() : {intervalDays:14, anchorDate: Comun.hoyISO()}; render(); }, fallo);
+    db.collection('history').onSnapshot(qs=>{ st.history = qs.docs.map(d=>Object.assign({id:d.id}, d.data())); render(); }, fallo);
+  });
+})();
+</script>
+</body>
+</html>

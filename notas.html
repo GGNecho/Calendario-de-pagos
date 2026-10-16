@@ -13,7 +13,7 @@
 <script src="comun.js"></script>
 <style>
 .add-row{ display:flex; gap:8px; margin-top:8px; }
-.add-row input{ flex:1; }
+.add-row input, .add-row select{ flex:1; min-width:0; }
 .add-row .btn{ flex:0 0 auto; }
 .note{ padding:12px 4px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:6px; }
 .note:first-child{ border-top:none; }
@@ -39,11 +39,12 @@ details[open] summary::after{ content:' ▴'; }
   <form class="card fijo" id="addForm" autocomplete="off">
     <h2>Nueva nota</h2>
     <textarea id="noteText" placeholder="Ej. Súper 850, regalo de cumpleaños, pagar el seguro del coche…" required></textarea>
+    <div class="add-row"><select id="noteTipo" aria-label="Tipo de nota"></select><input type="date" id="noteFecha" aria-label="Fecha (opcional)"></div>
     <div class="add-row">
       <input type="number" id="noteAmount" min="0" step="0.01" inputmode="decimal" placeholder="Monto (opcional)">
       <button type="submit" class="btn btn-primary">Agregar</button>
     </div>
-    <p class="muted" style="margin:8px 0 0">Si escribes el monto en el texto (por ejemplo "Súper 850"), lo tomo de ahí.</p>
+    <p class="muted" style="margin:8px 0 0">Si es un gasto y escribes el monto en el texto (por ejemplo "Súper 850"), lo tomo de ahí. Las citas, cumpleaños y otras fechas salen en la vista Mes del Calendario.</p>
   </form>
 
   <div class="col-main">
@@ -125,6 +126,7 @@ details[open] summary::after{ content:' ▴'; }
     return (limpio || String(t)).split('\n')[0].slice(0, 80);
   }
 
+  $('noteTipo').innerHTML = Object.entries(Comun.TIPOS_NOTA).map(([k,t])=>`<option value="${k}">${t.emoji} ${t.label}</option>`).join('');
   const sel = $('g-category');
   sel.innerHTML = Object.entries(Comun.CATEGORIAS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
 
@@ -133,27 +135,36 @@ details[open] summary::after{ content:' ▴'; }
     const text = $('noteText').value.trim();
     if(!text) return;
     const typed = $('noteAmount').value;
-    const amount = typed !== '' ? Number(typed) : montoDelTexto(text);
-    db.collection('notes').add({ text, amount: amount ?? null, status:'open', by: me(), createdAt: new Date().toISOString() })
-      .then(()=>{ $('noteText').value=''; $('noteAmount').value=''; })
+    const tipo = $('noteTipo').value;
+    // El monto se toma del texto solo en gastos: en "cumple de mamá 3 nov" el 3 es el día.
+    const amount = typed !== '' ? Number(typed) : tipo === 'gasto' ? montoDelTexto(text) : null;
+    const nota = { text, amount: amount ?? null, status:'open', by: me(), createdAt: new Date().toISOString() };
+    if(tipo !== 'gasto') nota.tipo = tipo;
+    if($('noteFecha').value) nota.fecha = $('noteFecha').value;
+    db.collection('notes').add(nota)
+      .then(()=>{ $('noteText').value=''; $('noteAmount').value=''; $('noteFecha').value=''; $('noteTipo').value='gasto'; })
       .catch(()=> toast('No se pudo guardar la nota.'));
   });
 
   function noteHTML(n){
-    const meta = `${Comun.quien(n.by)}<span>${fecha(n.createdAt)}</span>`;
+    const meta = `${Comun.esFecha(n) ? `<span class="tag accent">${Comun.fechaDeNota(n)}</span>` : ''}${Comun.quien(n.by)}<span>${fecha(n.createdAt)}</span>`;
     const amount = n.amount != null ? `<span class="note-amount money">${money.format(n.amount)}</span>` : '';
     if(n.status === 'open'){
+      const acciones = Comun.esFecha(n)
+        ? '<button type="button" class="btn btn-small" data-act="listo">Listo</button>'
+        : `<button type="button" class="btn btn-small" data-act="gasto">Ya se pagó → historial</button>
+          <button type="button" class="btn btn-small" data-act="cal">Por pagar → calendario</button>`;
       return `<div class="note" data-id="${n.id}">
         <div class="note-top"><div class="note-text">${escapeHTML(n.text)}</div>${amount}</div>
         <div class="note-meta">${meta}</div>
         <div class="note-actions">
-          <button type="button" class="btn btn-small" data-act="gasto">Ya se pagó → historial</button>
-          <button type="button" class="btn btn-small" data-act="cal">Por pagar → calendario</button>
+          ${acciones}
           <button type="button" class="btn-link" data-act="del">Borrar</button>
         </div>
       </div>`;
     }
-    const dest = n.status === 'history' ? '<span class="tag ok">En historial</span>' : '<span class="tag accent">En calendario</span>';
+    const dest = n.status === 'history' ? '<span class="tag ok">En historial</span>'
+      : n.status === 'done' ? '<span class="tag ok">Listo</span>' : '<span class="tag accent">En calendario</span>';
     return `<div class="note done" data-id="${n.id}">
       <div class="note-top"><div class="note-text">${escapeHTML(n.text)}</div>${amount}</div>
       <div class="note-meta">${meta}${dest}<button type="button" class="btn-link" data-act="del">Borrar nota</button></div>
@@ -173,7 +184,9 @@ details[open] summary::after{ content:' ▴'; }
     if(b){
       const n = notes.find(x=>x.id===b.closest('.note').dataset.id);
       if(!n) return;
-      if(b.dataset.act==='del'){
+      if(b.dataset.act==='listo'){
+        db.collection('notes').doc(n.id).update({status:'done'}).catch(()=>toast('No se pudo guardar.'));
+      } else if(b.dataset.act==='del'){
         if(confirm('¿Borrar esta nota?')) db.collection('notes').doc(n.id).delete().catch(()=>toast('No se pudo borrar.'));
       } else if(b.dataset.act==='gasto'){
         current = n;

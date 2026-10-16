@@ -36,6 +36,7 @@
 .entry-main{ flex:1; min-width:0; }
 .entry-name{ font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .entry-meta{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:2px; }
+.entry-meta .ticket-link{ padding:4px 2px; color:var(--ink-soft); }
 .entry .btn-link{ padding:10px 8px; font-size:14px; }
 .head-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
 .head-row h2{ margin:0; }
@@ -84,6 +85,7 @@
       <div class="field"><label for="a-date">Fecha</label><input type="date" id="a-date" required></div>
     </div>
     <div class="field"><label for="a-category">Categoría</label><select id="a-category"></select></div>
+    <div class="field"><label for="a-ticket">Foto del ticket (opcional)</label><input type="file" id="a-ticket" accept="image/*"></div>
     <div class="modal-actions">
       <button type="button" class="btn" data-close>Cancelar</button>
       <button type="submit" class="btn btn-primary">Guardar</button>
@@ -154,7 +156,8 @@
         <div class="entry-day"><b>${d}</b>${wd}</div>
         <div class="entry-main">
           <div class="entry-name">${escapeHTML(e.name||'Sin nombre')}</div>
-          <div class="entry-meta">${Comun.quien(e.by)}<span class="tag">${escapeHTML(Comun.CATEGORIAS[e.category] || 'Otro')}</span><span class="muted">${FUENTE[e.source]||''}</span></div>
+          <div class="entry-meta">${Comun.quien(e.by)}<span class="tag">${escapeHTML(Comun.CATEGORIAS[e.category] || 'Otro')}</span><span class="muted">${FUENTE[e.source]||''}</span>
+            ${e.ticket ? `<button type="button" class="btn-link ticket-link" data-ver="${e.id}">📎 Ver ticket</button>` : `<button type="button" class="btn-link ticket-link" data-ticket="${e.id}">+ Ticket</button>`}</div>
         </div>
         <span class="money">${money.format(Number(e.amount||0))}</span>
         <button type="button" class="btn-link" data-del="${e.id}" aria-label="Borrar">✕</button>
@@ -169,8 +172,19 @@
     view = {y:Number(b.dataset.y), m:Number(b.dataset.m)}; render();
   });
   $('entries').addEventListener('click', e=>{
+    const ver = e.target.closest('[data-ver]');
+    if(ver) return Comun.verTicket(db, ver.dataset.ver);
+    const tk = e.target.closest('[data-ticket]');
+    if(tk) return Comun.elegirFoto().then(f=>{
+      if(!f) return;
+      toast('Guardando el ticket…');
+      return Comun.guardarTicket(db, tk.dataset.ticket, f).then(()=> toast('Ticket guardado'));
+    }).catch(()=> toast('No se pudo guardar el ticket.'));
     const b = e.target.closest('[data-del]'); if(!b) return;
-    if(confirm('¿Borrar este gasto del historial?')) db.collection('history').doc(b.dataset.del).delete().catch(()=>toast('No se pudo borrar.'));
+    if(confirm('¿Borrar este gasto del historial?')){
+      db.collection('history').doc(b.dataset.del).delete().catch(()=>toast('No se pudo borrar.'));
+      Comun.borrarTicket(db, b.dataset.del).catch(()=>{});
+    }
   });
   $('addBtn').addEventListener('click', ()=>{
     $('addForm').reset();
@@ -184,11 +198,18 @@
   });
   $('addForm').addEventListener('submit', e=>{
     e.preventDefault();
+    const id = db.collection('history').doc().id;
+    const file = $('a-ticket').files && $('a-ticket').files[0];
     Comun.guardarEnHistorial(db, {
       name: $('a-name').value.trim(), amount: Number($('a-amount').value),
       date: $('a-date').value, category: $('a-category').value, source: 'manual',
-    }).then(()=>{ $('addBackdrop').hidden = true; toast('Gasto guardado'); })
-      .catch(()=> toast('No se pudo guardar.'));
+    }, id).then(()=>{
+      $('addBackdrop').hidden = true;
+      if(!file) return toast('Gasto guardado');
+      toast('Guardando el ticket…');
+      return Comun.guardarTicket(db, id, file).then(()=> toast('Gasto y ticket guardados'),
+        ()=> toast('El gasto se guardó, pero el ticket no. Intenta de nuevo con "+ Ticket".'));
+    }).catch(()=> toast('No se pudo guardar.'));
   });
 
   requireAccess(()=>{
