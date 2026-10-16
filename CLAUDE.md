@@ -27,7 +27,7 @@ Colecciones de Firestore: `payments`, `config/payroll`, `shared/splits`, `notes`
 
 ## Reglas que no se deben romper
 
-- **Lista de correos con acceso**: está en dos lugares, `PERMITIDOS` en `acceso.js` y la lista de `firestore.rules`. Siempre cambia los dos juntos. Después de cambiar `firestore.rules`, recuérdale al usuario que debe pegarlas en Firebase (Firestore Database > Rules > Publicar), porque subirlas a GitHub no las aplica.
+- **Lista de correos con acceso**: está en dos lugares, `PERMITIDOS` en `acceso.js` y la lista de `firestore.rules`. Siempre cambia los dos juntos. Después de cambiar `firestore.rules`, publícalas con `firebase.cmd deploy --only firestore:rules` (Firebase CLI ya tiene la sesión del usuario), porque subirlas a GitHub no las aplica.
 - Una página nueva debe cargar `acceso.js` y `comun.js`, usar `requireAccess` antes de leer datos, y agregarse a `PAGINAS` en `comun.js` para que salga en el menú.
 - No cambies los nombres de colecciones ni de campos que ya existen: hay datos guardados con ellos. Si hace falta, lee ambos formatos (como hace `LLAVES_ANTERIORES`).
 - Guarda en el historial con `Comun.guardarEnHistorial`; con un `id` fijo no se duplican registros.
