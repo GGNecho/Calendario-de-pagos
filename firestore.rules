@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Solo Nemecio y María Fernanda, con su cuenta, pueden leer o escribir.
+    function permitido() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'nemecioagg@gmail.com',
+          'mffpb09@hotmail.com'
+        ];
+    }
+    match /{document=**} {
+      allow read, write: if permitido();
+    }
+  }
+}

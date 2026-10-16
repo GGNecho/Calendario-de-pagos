@@ -1,0 +1,1222 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendario de Pagos</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="acceso.js"></script>
+<style>
+:root{
+  --paper:#F2F4EE;
+  --surface:#FFFFFF;
+  --surface-2:#F1F3EC;
+  --ink:#1C2621;
+  --ink-soft:#5B6660;
+  --ink-faint:#8B958E;
+  --border:#E1E5D6;
+  --accent:#2B4B7E;
+  --accent-ink:#EAF0FB;
+  --brass:#9C6E2E;
+  --brass-ink:#FBF1DF;
+  --ok:#2F7A55;
+  --ok-ink:#E4F3EA;
+  --warn:#B4701A;
+  --warn-ink:#FBEEDC;
+  --critical:#B23A2E;
+  --critical-ink:#FBE7E4;
+  --neutral-ink:#EEF0E8;
+  --card-shadow: 0 1px 2px rgba(28,38,33,0.06), 0 6px 18px rgba(28,38,33,0.06);
+  --bg-image: none;
+  --radius-xl: 22px;
+  --radius-lg: 16px;
+  --radius-sm: 10px;
+  --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body:'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0B100E;
+    --surface:#151F1A;
+    --surface-2:#1C2822;
+    --ink:#ECF1EC;
+    --ink-soft:#9FAFA5;
+    --ink-faint:#67766D;
+    --border:#243029;
+    --accent:#8FB0E8;
+    --accent-ink:#1C2C42;
+    --brass:#E0B673;
+    --brass-ink:#3A2E18;
+    --ok:#62D393;
+    --ok-ink:#143322;
+    --warn:#F0B35C;
+    --warn-ink:#3A2A11;
+    --critical:#F3917F;
+    --critical-ink:#3A1712;
+    --neutral-ink:#202C26;
+    --card-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 10px 26px rgba(0,0,0,0.42);
+    --bg-image: radial-gradient(ellipse 90% 60% at 50% -10%, #17352A 0%, rgba(23,53,42,0) 60%), linear-gradient(180deg, #0D1714 0%, #090D0B 55%, #08100D 100%);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0B100E;
+  --surface:#151F1A;
+  --surface-2:#1C2822;
+  --ink:#ECF1EC;
+  --ink-soft:#9FAFA5;
+  --ink-faint:#67766D;
+  --border:#243029;
+  --accent:#8FB0E8;
+  --accent-ink:#1C2C42;
+  --brass:#E0B673;
+  --brass-ink:#3A2E18;
+  --ok:#62D393;
+  --ok-ink:#143322;
+  --warn:#F0B35C;
+  --warn-ink:#3A2A11;
+  --critical:#F3917F;
+  --critical-ink:#3A1712;
+  --neutral-ink:#202C26;
+  --card-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 10px 26px rgba(0,0,0,0.42);
+  --bg-image: radial-gradient(ellipse 90% 60% at 50% -10%, #17352A 0%, rgba(23,53,42,0) 60%), linear-gradient(180deg, #0D1714 0%, #090D0B 55%, #08100D 100%);
+}
+
+*{box-sizing:border-box;}
+body{
+  background-color:var(--paper);
+  background-image:var(--bg-image);
+  background-attachment:fixed;
+  background-size:cover;
+  color:var(--ink);
+  font-family:var(--font-body);
+  margin:0;
+  padding:0;
+}
+.page{
+  max-width:640px;
+  margin:0 auto;
+  padding:28px 18px 72px;
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+::selection{ background:var(--accent-ink); color:var(--accent); }
+
+.hero{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding-top:4px; }
+.hero-text h1{
+  font-family:var(--font-display);
+  font-weight:600;
+  font-size:clamp(24px,6vw,30px);
+  margin:0 0 2px;
+  text-wrap:balance;
+}
+.hero-text p{ margin:0; color:var(--ink-soft); font-size:13.5px; }
+.month-badge{ font-size:0.58em; margin-left:4px; opacity:.9; vertical-align:middle; }
+
+.tabs{
+  display:flex;
+  gap:4px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:4px;
+  box-shadow:var(--card-shadow);
+}
+.tab-btn{
+  flex:1;
+  font-family:var(--font-body);
+  font-weight:600;
+  font-size:13.5px;
+  padding:9px 12px;
+  border-radius:999px;
+  border:none;
+  background:transparent;
+  color:var(--ink-soft);
+  cursor:pointer;
+}
+.tab-btn.is-active{ background:var(--accent); color:var(--accent-ink); }
+.view{ display:flex; flex-direction:column; gap:20px; }
+.view[hidden]{ display:none; }
+
+.stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+@media (max-width:520px){ .stats{ grid-template-columns:1fr; } }
+.stat-tile{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-xl);
+  padding:15px 16px;
+  box-shadow:var(--card-shadow);
+  display:flex; flex-direction:column; gap:4px;
+}
+.stat-tile.is-critical{ border-color:color-mix(in srgb, var(--critical) 35%, var(--border)); }
+.stat-tile.is-accent{ border-color:color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.stat-label{ font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; }
+.stat-value{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:21px; font-weight:600; }
+.stat-tile.is-critical .stat-value{ color:var(--critical); }
+.stat-tile.is-accent .stat-value{ color:var(--accent); }
+.stat-sub{ font-size:12.5px; color:var(--ink-faint); }
+.stat-sub button{ background:none;border:none;padding:0;margin-left:6px;color:var(--accent);font-size:12.5px;font-family:var(--font-body);text-decoration:underline;cursor:pointer; }
+
+.bucket{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl); box-shadow:var(--card-shadow); overflow:hidden; }
+.bucket-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:16px 18px 10px; }
+.bucket-head h2{ font-family:var(--font-body); font-weight:700; font-size:15px; margin:0; }
+.bucket--urgent .bucket-head h2{ color:var(--critical); }
+.bucket-total{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600; font-size:14px; color:var(--ink-soft); white-space:nowrap; }
+
+.payment-list{ list-style:none; margin:0; padding:6px; display:flex; flex-direction:column; gap:4px; }
+.payment-row{
+  display:flex; align-items:center; gap:11px;
+  padding:10px 10px;
+  border-radius:var(--radius-lg);
+  position:relative;
+}
+.payment-row:hover{ background:var(--surface-2); }
+.icon-tile{
+  flex:0 0 auto; width:38px; height:38px; border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; line-height:1;
+  box-shadow:0 2px 6px rgba(0,0,0,0.18);
+  overflow:hidden;
+}
+.icon-tile img{ width:100%; height:100%; object-fit:cover; display:block; }
+.icon-upload-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.icon-preview{ width:48px; height:48px; border-radius:14px; font-size:22px; background:var(--surface-2); border:1px solid var(--border); }
+.check{
+  flex:0 0 auto; width:24px; height:24px; border-radius:8px;
+  border:1.5px solid var(--border); background:var(--surface-2);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  color:var(--ok); font-size:14px; line-height:1;
+}
+.check:hover{ border-color:var(--ok); }
+.row-main{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.row-name{ font-weight:600; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row-cad{ font-size:12px; color:var(--ink-faint); }
+.row-right{ flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+.row-amount{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600; font-size:14.5px; }
+.row-status{ font-size:11.5px; font-weight:600; padding:1px 8px; border-radius:999px; white-space:nowrap; }
+.row-status.ok{ color:var(--ok); background:var(--ok-ink); }
+.row-status.warn{ color:var(--warn); background:var(--warn-ink); }
+.row-status.critical{ color:var(--critical); background:var(--critical-ink); }
+.row-status.neutral{ color:var(--ink-soft); background:var(--neutral-ink); }
+.row-actions{ flex:0 0 auto; display:flex; gap:0; margin-left:2px; }
+.icon-btn{ width:26px; height:26px; border:none; background:transparent; border-radius:8px; color:var(--ink-faint); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; }
+.icon-btn:hover{ background:var(--surface-2); color:var(--ink); }
+
+.divider-later{ padding:10px 14px 4px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); }
+.empty-note{ padding:20px 14px; color:var(--ink-faint); font-size:13.5px; }
+
+.row-confirm{ flex:1; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13.5px; padding:4px 6px; }
+.row-confirm .btn{ padding:5px 10px; font-size:12.5px; }
+
+.toolbar{ display:flex; gap:10px; flex-wrap:wrap; }
+.btn{ font-family:var(--font-body); font-weight:600; font-size:14px; padding:10px 16px; border-radius:999px; border:1px solid var(--border); background:var(--surface); color:var(--ink); cursor:pointer; }
+.btn:hover{ border-color:var(--ink-faint); }
+.btn-primary{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+.btn-primary:hover{ filter:brightness(1.06); }
+.btn-ghost{ background:transparent; }
+
+.foot{ color:var(--ink-faint); font-size:12px; text-align:center; padding-top:4px; }
+.foot p{ margin:0; }
+
+/* calendar */
+.cal-card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl); box-shadow:var(--card-shadow); padding:16px; }
+.cal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.cal-label{ font-family:var(--font-body); font-weight:700; font-size:15px; }
+.cal-nav{ display:flex; gap:6px; }
+.cal-nav-btn{ width:30px; height:30px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.cal-nav-btn:hover{ border-color:var(--ink-faint); }
+.cal-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
+.cal-weekdays span{ text-align:center; font-size:10.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em; }
+.cal-grid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; }
+.cal-cell{ aspect-ratio:1; min-width:0; border-radius:11px; background:var(--surface-2); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:2px; overflow:hidden; }
+.cal-cell.is-blank{ background:transparent; }
+.cal-cell.is-today{ box-shadow:inset 0 0 0 2px var(--accent); }
+.cal-daynum{ font-size:11px; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
+.cal-dots{ display:flex; gap:2px; align-items:center; justify-content:center; flex-wrap:wrap; }
+.cal-dot{ width:7px; height:7px; border-radius:50%; }
+.cal-more{ font-size:8.5px; color:var(--ink-faint); font-weight:600; }
+.cal-icon-solo{
+  width:24px; height:24px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; line-height:1; overflow:hidden;
+  box-shadow:0 2px 5px rgba(0,0,0,0.22);
+}
+.cal-icon-solo img{ width:100%; height:100%; object-fit:cover; display:block; }
+.cal-icon-mini{
+  width:14px; height:14px; border-radius:5px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:8px; line-height:1; overflow:hidden;
+  box-shadow:0 1px 3px rgba(0,0,0,0.2);
+}
+.cal-icon-mini img{ width:100%; height:100%; object-fit:cover; display:block; }
+.cal-cell.in-window{ box-shadow:none; }
+.cal-cell.in-window.is-today{ box-shadow:inset 0 0 0 2px var(--accent); }
+
+/* modals (shared) */
+.modal-backdrop{ position:fixed; inset:0; background:rgba(8,12,10,0.55); display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; z-index:50; }
+.modal-backdrop[hidden]{ display:none; }
+.modal{ background:var(--surface); border-radius:var(--radius-xl); border:1px solid var(--border); box-shadow:var(--card-shadow); width:100%; max-width:440px; padding:22px 22px 20px; }
+.modal h2{ font-family:var(--font-display); font-size:19px; margin:0 0 14px; font-weight:600; }
+.field{ display:flex; flex-direction:column; gap:5px; margin-bottom:13px; }
+.field label{ font-size:12.5px; color:var(--ink-soft); font-weight:600; }
+.field input[type="text"], .field input[type="number"], .field input[type="date"], .field select{
+  font-family:var(--font-body); font-size:14.5px; padding:9px 10px; border-radius:var(--radius-sm);
+  border:1px solid var(--border); background:var(--surface-2); color:var(--ink); width:100%;
+}
+.field-row{ display:flex; gap:10px; }
+.field-row .field{ flex:1; }
+.checkline{ display:flex; align-items:center; gap:8px; font-size:13.5px; margin:2px 0 13px; }
+.checkline input{ width:16px; height:16px; }
+.modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:6px; }
+.radio-group{ display:flex; flex-direction:column; gap:6px; margin-bottom:13px; }
+.radio-opt{ display:flex; align-items:center; gap:8px; font-size:14px; }
+.radio-opt input{ width:16px; height:16px; }
+.hint{ font-size:12px; color:var(--ink-faint); margin:-4px 0 12px; }
+
+.toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:999px; font-size:13.5px; box-shadow:var(--card-shadow); z-index:60; }
+:root[data-theme="dark"] .toast, :root:not([data-theme="light"]) .toast{ background:var(--surface); color:var(--ink); border:1px solid var(--border); }
+.toast[hidden]{ display:none; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <div class="hero-text">
+      <h1>Calendario de Pagos <span class="month-badge" id="monthThemeBadge" title=""></span></h1>
+      <p>Nemecio · Ciudad Madero</p>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn is-active" id="tabQuincenaBtn" role="tab" aria-selected="true">Quincena</button>
+    <button class="tab-btn" id="tabCalendarioBtn" role="tab" aria-selected="false">Calendario</button>
+  </nav>
+
+  <section class="view" id="viewQuincena">
+    <section class="stats" id="stats">
+      <div class="stat-tile"><span class="stat-label">Cargando</span><span class="stat-value">…</span></div>
+    </section>
+
+    <div class="bucket bucket--urgent">
+      <div class="bucket-head"><h2>Antes de tu próxima nómina</h2><span class="bucket-total" id="urgentTotal">—</span></div>
+      <ul class="payment-list" id="urgentList"><li class="empty-note">Cargando…</li></ul>
+    </div>
+    <div class="bucket bucket--waiting">
+      <div class="bucket-head"><h2>Puede esperar</h2><span class="bucket-total" id="waitingTotal">—</span></div>
+      <ul class="payment-list" id="waitingList"><li class="empty-note">Cargando…</li></ul>
+    </div>
+
+    <section class="toolbar">
+      <button id="addPaymentBtn" class="btn btn-primary" disabled>+ Agregar pago</button>
+      <button id="editPayrollBtn" class="btn btn-ghost" disabled>Ajustar nómina</button>
+    </section>
+  </section>
+
+  <section class="view" id="viewCalendario" hidden>
+    <div class="cal-card">
+      <div class="cal-header">
+        <span class="cal-label" id="calLabel">—</span>
+        <div class="cal-nav">
+          <button class="cal-nav-btn" id="calPrev" aria-label="Mes anterior">‹</button>
+          <button class="cal-nav-btn" id="calNext" aria-label="Mes siguiente">›</button>
+        </div>
+      </div>
+      <div class="cal-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+    <div class="bucket">
+      <div class="bucket-head"><h2 id="calListTitle">Pagos del mes</h2><span class="bucket-total" id="calListTotal">—</span></div>
+      <ul class="payment-list" id="calList"><li class="empty-note">Cargando…</li></ul>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p>Marca un pago como hecho y su próxima fecha se recalcula sola. Claude te avisa aquí antes de que se te pase alguno.</p>
+  </footer>
+</div>
+
+<div class="modal-backdrop" id="paymentModalBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
+    <h2 id="paymentModalTitle">Agregar pago</h2>
+    <form id="paymentForm">
+      <div class="field">
+        <label for="f-name">Nombre</label>
+        <input type="text" id="f-name" required placeholder="Ej. Renta, Netflix, Hosting…">
+      </div>
+      <div class="field">
+        <label>Icono (opcional)</label>
+        <div class="icon-upload-row">
+          <span class="icon-tile icon-preview" id="f-icon-preview">🖼️</span>
+          <input type="file" id="f-icon-file" accept="image/*" hidden>
+          <button type="button" class="btn btn-ghost" id="f-icon-pick-btn">Subir imagen</button>
+          <button type="button" class="btn btn-ghost" id="f-icon-remove-btn" hidden>Quitar</button>
+        </div>
+        <p class="hint" id="f-icon-hint">Si no subes nada, se asigna un icono automático.</p>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="f-category">Categoría</label>
+          <select id="f-category">
+            <option value="personal">Personal</option>
+            <option value="negocio">Negocio</option>
+            <option value="suscripcion">Suscripción</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-amount">Monto (MXN)</label>
+          <input type="number" id="f-amount" min="0" step="0.01" required placeholder="0.00">
+        </div>
+      </div>
+
+      <div class="radio-group" role="radiogroup" aria-label="¿Se repite este pago?">
+        <div class="radio-opt"><input type="radio" name="f-repeat" id="f-repeat-yes" value="yes" checked><label for="f-repeat-yes">Es recurrente — se repite</label></div>
+        <div class="radio-opt"><input type="radio" name="f-repeat" id="f-repeat-no" value="no"><label for="f-repeat-no">Pago único — no se repite</label></div>
+      </div>
+
+      <div id="recurringFields">
+        <div class="field">
+          <label for="f-freq">¿Cada cuánto se repite?</label>
+          <select id="f-freq">
+            <option value="monthly-1">Cada mes</option>
+            <option value="monthly-2">Cada 2 meses (bimestral)</option>
+            <option value="monthly-3">Cada 3 meses (trimestral)</option>
+            <option value="custom-days">Cada N días (personalizado)</option>
+          </select>
+        </div>
+
+        <div id="monthlyFields">
+          <div class="field-row">
+            <div class="field">
+              <label for="f-day">Día del mes</label>
+              <input type="number" id="f-day" min="1" max="31" value="1">
+            </div>
+            <div class="checkline" style="margin-top:22px;">
+              <input type="checkbox" id="f-lastday">
+              <label for="f-lastday">Último día del mes</label>
+            </div>
+          </div>
+          <div class="field" id="anchorFieldWrap" hidden>
+            <label for="f-anchor">Última vez que se pagó (o se pagará)</label>
+            <input type="date" id="f-anchor">
+            <p class="hint">Con esto calculamos a partir de qué mes cae, ya que no es cada mes.</p>
+          </div>
+          <div class="field" id="windowFieldWrap">
+            <div class="checkline">
+              <input type="checkbox" id="f-haswindow">
+              <label for="f-haswindow">Se puede pagar desde antes (ventana de días)</label>
+            </div>
+            <div class="field-row" id="windowStartWrap" hidden>
+              <div class="field">
+                <label for="f-windowstart">Se puede pagar desde el día</label>
+                <input type="number" id="f-windowstart" min="1" max="31" value="1">
+              </div>
+            </div>
+            <p class="hint">Ej. renta pagable del 1 al 5: "Día del mes" = 5, y aquí "desde el día" = 1.</p>
+          </div>
+        </div>
+
+        <div id="customDaysFields" hidden>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-interval">¿Cada cuántos días?</label>
+              <input type="number" id="f-interval" min="1" max="365" placeholder="Ej. 20, 30, 40…">
+            </div>
+            <div class="field">
+              <label for="f-interval-start">Fecha de inicio</label>
+              <input type="date" id="f-interval-start">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="oneTimeFields" hidden>
+        <div class="field">
+          <label for="f-onetime-date">Fecha de pago</label>
+          <input type="date" id="f-onetime-date">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="f-notes">Notas (opcional)</label>
+        <input type="text" id="f-notes" placeholder="Ej. Cuenta a nombre de…">
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="paymentCancelBtn">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="paymentSaveBtn">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="payrollModalBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="payrollModalTitle">
+    <h2 id="payrollModalTitle">Ajustar tu nómina</h2>
+    <form id="payrollForm">
+      <div class="field">
+        <label for="p-interval">¿Cada cuántos días te pagan?</label>
+        <input type="number" id="p-interval" min="1" max="60" value="14">
+      </div>
+      <div class="field">
+        <label for="p-last">¿Cuándo te pagaron por última vez?</label>
+        <input type="date" id="p-last">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="payrollCancelBtn">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDLV3ozEUZ8XrybKQIrYUA7PY33GKnsFwY",
+    authDomain: "calendario-de-pagos-56e44.firebaseapp.com",
+    projectId: "calendario-de-pagos-56e44",
+    storageBucket: "calendario-de-pagos-56e44.firebasestorage.app",
+    messagingSenderId: "783588307830",
+    appId: "1:783588307830:web:8b48c58d61b53cbb304057"
+  };
+  firebase.initializeApp(firebaseConfig);
+</script>
+<script>
+(function(){
+  "use strict";
+
+  // ---------- date helpers (plain {y,m,d}, m is 0-indexed) ----------
+  function parseISO(s){ const p=s.split('-').map(Number); return {y:p[0], m:p[1]-1, d:p[2]}; }
+  function toISO(o){ return o.y.toString().padStart(4,'0')+'-'+(o.m+1).toString().padStart(2,'0')+'-'+o.d.toString().padStart(2,'0'); }
+  function toUTCms(o){ return Date.UTC(o.y,o.m,o.d); }
+  function cmp(a,b){ return toUTCms(a)-toUTCms(b); }
+  function daysInMonth(y,m){ return new Date(Date.UTC(y,m+1,0)).getUTCDate(); }
+  function addDays(o,n){ const dt=new Date(toUTCms(o)+n*86400000); return {y:dt.getUTCFullYear(), m:dt.getUTCMonth(), d:dt.getUTCDate()}; }
+  function todayObj(){ const now=new Date(); return {y:now.getFullYear(), m:now.getMonth(), d:now.getDate()}; }
+  function monthAbs(o){ return o.y*12+o.m; }
+  function fromMonthAbs(abs){ return {y:Math.floor(abs/12), m:((abs%12)+12)%12}; }
+  function occurrenceAtMonth(abs, day, lastDay){
+    const {y,m}=fromMonthAbs(abs);
+    const dim=daysInMonth(y,m);
+    const d = lastDay ? dim : Math.min(day||1,dim);
+    return {y,m,d};
+  }
+  function diffDays(a,b){ return Math.round((toUTCms(a)-toUTCms(b))/86400000); }
+  function weekdayMon(o){ return (new Date(Date.UTC(o.y,o.m,o.d)).getUTCDay()+6)%7; } // 0=Mon..6=Sun
+
+  const WEEKDAY = ['dom','lun','mar','mié','jue','vie','sáb'];
+  const MONTH = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const MONTH_LONG = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  function fmtDate(o, withWeekday){
+    const wd = WEEKDAY[new Date(Date.UTC(o.y,o.m,o.d)).getUTCDay()];
+    const base = o.d + ' ' + MONTH[o.m] + (o.y!==todayObj().y? ' '+o.y : '');
+    return withWeekday ? (wd+' '+base) : base;
+  }
+  const money = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN', maximumFractionDigits:0});
+
+  // ---------- recurrence engine ----------
+  function nextMonthly(rule, today){
+    const anchor=parseISO(rule.anchorDate);
+    const k=rule.monthsInterval||1;
+    const anchorAbs=monthAbs(anchor);
+    const todayAbs=monthAbs(today);
+    let steps=Math.ceil((todayAbs-anchorAbs)/k);
+    if(steps<0) steps=0;
+    let candAbs=anchorAbs+steps*k;
+    let cand=occurrenceAtMonth(candAbs, rule.day, rule.lastDayOfMonth);
+    let guard=0;
+    while(cmp(cand,today)<0 && guard<60){ candAbs+=k; cand=occurrenceAtMonth(candAbs, rule.day, rule.lastDayOfMonth); guard++; }
+    return cand;
+  }
+  function nextIntervalDays(rule, today){
+    const anchor=parseISO(rule.anchorDate);
+    const n=rule.intervalDays;
+    const dd=diffDays(today, anchor);
+    let k=Math.ceil(dd/n);
+    if(k<0) k=0;
+    return addDays(anchor, k*n);
+  }
+  function rawNext(rule, today){
+    if(rule.recurrenceType==='monthly') return nextMonthly(rule, today);
+    if(rule.recurrenceType==='interval_days') return nextIntervalDays(rule, today);
+    return parseISO(rule.anchorDate);
+  }
+  function nextDue(payment, today){
+    const raw=rawNext(payment, today);
+    if(payment.lastPaidDate){
+      const lp=parseISO(payment.lastPaidDate);
+      if(cmp(lp, raw) >= 0){
+        return rawNext(payment, addDays(lp,1));
+      }
+    }
+    return raw;
+  }
+  function nextPayday(payroll, today){
+    const anchor=parseISO(payroll.anchorDate);
+    const n=payroll.intervalDays||14;
+    const dd=diffDays(today, anchor);
+    let k=Math.floor(dd/n)+1;
+    if(k<0) k=0;
+    return addDays(anchor, k*n);
+  }
+  function cadenceLabel(p){
+    if(p.recurrenceType==='one_time') return 'Único';
+    if(p.recurrenceType==='interval_days') return 'Cada '+p.intervalDays+' días';
+    const k=p.monthsInterval||1;
+    if(p.windowStartDay && p.windowStartDay < p.day && !p.lastDayOfMonth){
+      const base = k===1?'Del':(k===2?'Bimestral · del':(k===3?'Trimestral · del':('Cada '+k+' meses · del')));
+      return base+' '+p.windowStartDay+' al '+p.day;
+    }
+    if(k===1) return 'Mensual';
+    if(k===2) return 'Bimestral';
+    if(k===3) return 'Trimestral';
+    return 'Cada '+k+' meses';
+  }
+
+  // ---------- icon picker ----------
+  const ICON_COLORS = ['#3478F6','#1DB954','#E4405F','#FF8A3D','#B454E0','#00B8A9','#F2B705','#5B6EF5'];
+  const KEYWORD_ICONS = [
+    [/renta|alquiler|hipoteca/i,'🏠'],
+    [/internet|wifi|megacable|izzi|totalplay|fibra/i,'📶'],
+    [/telcel|movistar|at&t|unefon|celular|tel[ée]fono/i,'📱'],
+    [/apple/i,'🍎'],
+    [/netflix/i,'🎬'],
+    [/spotify|m[úu]sica/i,'🎵'],
+    [/agua/i,'💧'],
+    [/luz|cfe|iberdrola|electric/i,'💡'],
+    [/\bgas\b/i,'🔥'],
+    [/gym|synergym|gimnasio/i,'🏋️'],
+    [/google/i,'🔷'],
+    [/chatgpt|openai/i,'🤖'],
+    [/invest|ahorro|invers/i,'💼'],
+    [/disney|hbo|max|prime/i,'📺'],
+    [/seguro/i,'🛡️'],
+  ];
+  function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))>>>0; } return h; }
+  function hexToRgba(hex, alpha){
+    const h = hex.replace('#','');
+    const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  // ---------- monthly themes (automatic seasonal reskin) ----------
+  const MONTH_THEMES = [
+    {emoji:'❄️', name:'Año Nuevo',        light:{accent:'#2B5F8A',ink:'#EAF4FB'}, dark:{accent:'#8FCBEA',ink:'#163044'}},
+    {emoji:'💗', name:'San Valentín',      light:{accent:'#9C2F5C',ink:'#FBE7F0'}, dark:{accent:'#F0A8C4',ink:'#45182B'}},
+    {emoji:'🌱', name:'Primavera',         light:{accent:'#2F7A4E',ink:'#E6F6EC'}, dark:{accent:'#8FE0AE',ink:'#163322'}},
+    {emoji:'🌸', name:'Flores',            light:{accent:'#7A4FA6',ink:'#F3EAFB'}, dark:{accent:'#CBA8F0',ink:'#2E1C42'}},
+    {emoji:'💐', name:'Día de las Madres', light:{accent:'#B23A6B',ink:'#FBE7EF'}, dark:{accent:'#F0A0C0',ink:'#3A1626'}},
+    {emoji:'☀️', name:'Verano',            light:{accent:'#B4701A',ink:'#FBEEDC'}, dark:{accent:'#F0C878',ink:'#3A2A11'}},
+    {emoji:'🌊', name:'Vacaciones',        light:{accent:'#1A7A8A',ink:'#E2F6F8'}, dark:{accent:'#7FE0EE',ink:'#0F3338'}},
+    {emoji:'🌻', name:'Girasol',           light:{accent:'#B4820E',ink:'#FBF3DC'}, dark:{accent:'#F0D878',ink:'#3A2E0D'}},
+    {emoji:'🇲🇽', name:'Mes Patrio',        light:{accent:'#2E7D4F',ink:'#EAF7EE'}, dark:{accent:'#8FE0AE',ink:'#163322'}},
+    {emoji:'🎃', name:'Halloween',         light:{accent:'#B4530E',ink:'#FBE9DC'}, dark:{accent:'#F0A868',ink:'#3A200D'}},
+    {emoji:'🎇', name:'Día de Muertos',    light:{accent:'#8A2F6E',ink:'#F8E6F2'}, dark:{accent:'#E0A0CC',ink:'#38162C'}},
+    {emoji:'🎄', name:'Navidad',           light:{accent:'#A6271F',ink:'#FBE4E1'}, dark:{accent:'#F0978C',ink:'#3A130F'}},
+  ];
+  function isDarkMode(){
+    const explicit = document.documentElement.getAttribute('data-theme');
+    if(explicit==='dark') return true;
+    if(explicit==='light') return false;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  let lastThemeMonth = todayObj().m;
+  function applyMonthTheme(monthIdx){
+    if(monthIdx===undefined) monthIdx = lastThemeMonth;
+    lastThemeMonth = monthIdx;
+    const theme = MONTH_THEMES[monthIdx];
+    const pick = isDarkMode() ? theme.dark : theme.light;
+    const root = document.documentElement;
+    root.style.setProperty('--accent', pick.accent);
+    root.style.setProperty('--accent-ink', pick.ink);
+    const badge = document.getElementById('monthThemeBadge');
+    if(badge){ badge.textContent = theme.emoji; badge.title = 'Tema de ' + MONTH_LONG[monthIdx] + ': ' + theme.name; }
+  }
+  if(window.matchMedia){
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>applyMonthTheme());
+  }
+  applyMonthTheme(todayObj().m);
+  function pickIcon(name, category){
+    let emoji=null;
+    for(const [re,em] of KEYWORD_ICONS){ if(re.test(name)){ emoji=em; break; } }
+    if(!emoji) emoji = category==='negocio' ? '💼' : category==='suscripcion' ? '⭐' : '💳';
+    const color = ICON_COLORS[hashStr(name)%ICON_COLORS.length];
+    return {emoji, color};
+  }
+
+  // ---------- state ----------
+  const state = { payments:null, payroll:null, db:null, editingId:null, calView:todayObj(), activeTab:'quincena', formIconDataUri:null };
+
+  const els = {
+    stats: document.getElementById('stats'),
+    urgentList: document.getElementById('urgentList'),
+    waitingList: document.getElementById('waitingList'),
+    urgentTotal: document.getElementById('urgentTotal'),
+    waitingTotal: document.getElementById('waitingTotal'),
+    addBtn: document.getElementById('addPaymentBtn'),
+    payrollBtn: document.getElementById('editPayrollBtn'),
+    toast: document.getElementById('toast'),
+    calLabel: document.getElementById('calLabel'),
+    calGrid: document.getElementById('calGrid'),
+    calList: document.getElementById('calList'),
+    calListTotal: document.getElementById('calListTotal'),
+    calListTitle: document.getElementById('calListTitle'),
+  };
+
+  function showToast(msg){
+    els.toast.textContent = msg;
+    els.toast.hidden = false;
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>{ els.toast.hidden = true; }, 2600);
+  }
+  function escapeHTML(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- tabs ----------
+  const tabQuincenaBtn = document.getElementById('tabQuincenaBtn');
+  const tabCalendarioBtn = document.getElementById('tabCalendarioBtn');
+  const viewQuincena = document.getElementById('viewQuincena');
+  const viewCalendario = document.getElementById('viewCalendario');
+  function setTab(tab){
+    state.activeTab = tab;
+    const isQ = tab==='quincena';
+    viewQuincena.hidden = !isQ;
+    viewCalendario.hidden = isQ;
+    tabQuincenaBtn.classList.toggle('is-active', isQ);
+    tabCalendarioBtn.classList.toggle('is-active', !isQ);
+    tabQuincenaBtn.setAttribute('aria-selected', isQ);
+    tabCalendarioBtn.setAttribute('aria-selected', !isQ);
+    if(isQ) applyMonthTheme(todayObj().m);
+    else renderCalendar();
+  }
+  tabQuincenaBtn.addEventListener('click', ()=>setTab('quincena'));
+  tabCalendarioBtn.addEventListener('click', ()=>setTab('calendario'));
+
+  // ---------- Quincena view ----------
+  function render(){
+    if(!state.payments || !state.payroll) return;
+    const today = todayObj();
+    const payday = nextPayday(state.payroll, today);
+    const paydayAfter = addDays(payday, state.payroll.intervalDays||14);
+    const daysToPayday = diffDays(payday, today);
+
+    const active = state.payments.filter(p => !(p.recurrenceType==='one_time' && p.lastPaidDate));
+    const withDue = active.map(p => Object.assign({}, p, {_due: nextDue(p, today)}));
+    withDue.sort((a,b)=>cmp(a._due,b._due));
+
+    const urgent = withDue.filter(p => cmp(p._due, payday) <= 0);
+    const waiting = withDue.filter(p => cmp(p._due, payday) > 0);
+
+    const urgentSum = urgent.reduce((s,p)=>s+Number(p.amount||0),0);
+    const waitingSum = waiting.reduce((s,p)=>s+Number(p.amount||0),0);
+
+    els.stats.innerHTML = `
+      <div class="stat-tile is-critical">
+        <span class="stat-label">Antes del ${fmtDate(payday,false)}</span>
+        <span class="stat-value">${money.format(urgentSum)}</span>
+        <span class="stat-sub">${urgent.length} pago${urgent.length===1?'':'s'}</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-label">Puede esperar</span>
+        <span class="stat-value">${money.format(waitingSum)}</span>
+        <span class="stat-sub">${waiting.length} pago${waiting.length===1?'':'s'}</span>
+      </div>
+      <div class="stat-tile is-accent">
+        <span class="stat-label">Próxima nómina</span>
+        <span class="stat-value">${fmtDate(payday,false)}</span>
+        <span class="stat-sub">en ${daysToPayday} día${daysToPayday===1?'':'s'}<button type="button" id="payrollInlineBtn">ajustar</button></span>
+      </div>`;
+    const inlineBtn = document.getElementById('payrollInlineBtn');
+    if(inlineBtn) inlineBtn.addEventListener('click', openPayrollModal);
+
+    els.urgentTotal.textContent = money.format(urgentSum);
+    els.waitingTotal.textContent = money.format(waitingSum);
+
+    renderList(els.urgentList, urgent, today);
+    renderList(els.waitingList, waiting, today, paydayAfter);
+  }
+
+  function statusForDue(dueDate, today){
+    const dd = diffDays(dueDate, today);
+    if(dd < 0) return {label:'Venció hace '+(-dd)+' día'+(-dd===1?'':'s'), cls:'critical'};
+    if(dd === 0) return {label:'Hoy', cls:'critical'};
+    if(dd === 1) return {label:'Mañana', cls:'warn'};
+    if(dd <= 3) return {label:'en '+dd+' días', cls:'warn'};
+    return {label:'en '+dd+' días', cls:'neutral'};
+  }
+
+  function miniIconHTML(p, variant){
+    const cls = variant==='solo' ? 'cal-icon-solo' : 'cal-icon-mini';
+    const t = escapeHTML(p.name||'');
+    if(p.iconDataUri) return `<span class="${cls}" style="background:var(--surface-2)" title="${t}"><img src="${p.iconDataUri}" alt=""></span>`;
+    const icon = pickIcon(p.name, p.category);
+    return `<span class="${cls}" style="background:${icon.color}" title="${t}">${icon.emoji}</span>`;
+  }
+
+  function iconTileHTML(p){
+    if(p.iconDataUri) return `<span class="icon-tile" style="background:var(--surface-2)"><img src="${p.iconDataUri}" alt=""></span>`;
+    const icon = pickIcon(p.name, p.category);
+    return `<span class="icon-tile" style="background:${icon.color}">${icon.emoji}</span>`;
+  }
+
+  function rowHTML(p, today){
+    const status = statusForDue(p._due, today);
+    const rowClass = status.cls==='critical' ? 'is-overdue' : '';
+    return `<li class="payment-row ${rowClass}" data-id="${p.id}">
+      <button class="check" title="Marcar como pagado" data-action="pay" data-id="${p.id}" data-due="${toISO(p._due)}">✓</button>
+      ${iconTileHTML(p)}
+      <div class="row-main">
+        <span class="row-name">${escapeHTML(p.name)}</span>
+        <span class="row-cad">${cadenceLabel(p)}</span>
+      </div>
+      <div class="row-right">
+        <span class="row-amount">${money.format(p.amount)}</span>
+        <span class="row-status ${status.cls}">${status.label}</span>
+      </div>
+      <div class="row-actions">
+        <button class="icon-btn" title="Editar" data-action="edit" data-id="${p.id}">✎</button>
+        <button class="icon-btn" title="Eliminar" data-action="del" data-id="${p.id}">🗑</button>
+      </div>
+    </li>`;
+  }
+
+  function renderList(ul, list, today, laterFrom){
+    if(list.length===0){ ul.innerHTML = '<li class="empty-note">Nada por aquí.</li>'; return; }
+    let html='';
+    let laterShown=false;
+    list.forEach(p=>{
+      if(laterFrom && !laterShown && cmp(p._due, laterFrom) > 0){
+        html += '<li class="divider-later">Más adelante</li>';
+        laterShown = true;
+      }
+      html += rowHTML(p, today);
+    });
+    ul.innerHTML = html;
+  }
+
+  // ---------- Calendario view ----------
+  function computeMonthOccurrences(year, month){
+    const results = [];
+    const mStart = {y:year, m:month, d:1};
+    const mEnd = {y:year, m:month, d:daysInMonth(year,month)};
+    (state.payments||[]).forEach(p=>{
+      if(p.recurrenceType==='monthly'){
+        const anchor=parseISO(p.anchorDate);
+        const k=p.monthsInterval||1;
+        const anchorAbs=monthAbs(anchor);
+        const thisAbs=year*12+month;
+        if(thisAbs>=anchorAbs && ((thisAbs-anchorAbs)%k)===0){
+          results.push({date: occurrenceAtMonth(thisAbs, p.day, p.lastDayOfMonth), payment:p});
+        }
+      } else if(p.recurrenceType==='interval_days'){
+        const anchor=parseISO(p.anchorDate);
+        const n=p.intervalDays;
+        if(n>0){
+          let k0=Math.floor(diffDays(mStart,anchor)/n);
+          if(k0<0) k0=0;
+          let d=addDays(anchor,k0*n);
+          let guard=0;
+          while(cmp(d,mStart)<0 && guard<500){ d=addDays(d,n); guard++; }
+          while(cmp(d,mEnd)<=0 && guard<900){ results.push({date:d, payment:p}); d=addDays(d,n); guard++; }
+        }
+      } else {
+        const d=parseISO(p.anchorDate);
+        if(cmp(d,mStart)>=0 && cmp(d,mEnd)<=0) results.push({date:d, payment:p});
+      }
+    });
+    results.sort((a,b)=>cmp(a.date,b.date));
+    return results;
+  }
+
+  function occurrenceStatus(p, date, today){
+    let paid=false;
+    if(p.lastPaidDate){
+      if(p.recurrenceType==='one_time') paid = true;
+      else paid = cmp(parseISO(p.lastPaidDate), date) >= 0;
+    }
+    if(paid) return {label:'Pagado', cls:'ok'};
+    const dd = diffDays(date, today);
+    if(dd<0) return {label:'Venció hace '+(-dd)+' día'+(-dd===1?'':'s'), cls:'critical'};
+    if(dd===0) return {label:'Hoy', cls:'critical'};
+    if(dd===1) return {label:'Mañana', cls:'warn'};
+    return {label:'en '+dd+' días', cls:'neutral'};
+  }
+
+  function renderCalendar(){
+    if(!state.payments) return;
+    const {y,m} = state.calView;
+    applyMonthTheme(m);
+    els.calLabel.textContent = MONTH_LONG[m] + ' ' + y;
+
+    const occ = computeMonthOccurrences(y,m);
+    const byDay = {};
+    occ.forEach(o=>{ (byDay[o.date.d] = byDay[o.date.d]||[]).push(o); });
+    const highlightByDay = {};
+    occ.forEach(o=>{
+      const p = o.payment;
+      if(p.recurrenceType==='monthly' && !p.lastDayOfMonth && p.windowStartDay && p.windowStartDay < p.day){
+        for(let wd=p.windowStartDay; wd<=p.day; wd++) highlightByDay[wd] = p;
+      }
+    });
+
+    const firstW = weekdayMon({y,m,d:1});
+    const dim = daysInMonth(y,m);
+    const today = todayObj();
+    let cells='';
+    for(let i=0;i<firstW;i++) cells += '<div class="cal-cell is-blank"></div>';
+    for(let d=1; d<=dim; d++){
+      const isToday = today.y===y && today.m===m && today.d===d;
+      const dayOcc = byDay[d]||[];
+      let icons='';
+      if(dayOcc.length===1){
+        icons = miniIconHTML(dayOcc[0].payment, 'solo');
+      } else if(dayOcc.length>1){
+        const shown = dayOcc.slice(0,3);
+        icons = shown.map(o=>miniIconHTML(o.payment,'mini')).join('');
+        if(dayOcc.length>3) icons += `<span class="cal-more">+${dayOcc.length-3}</span>`;
+      }
+
+      let cls = 'cal-cell';
+      let styleAttr = '';
+      let titleAttr = '';
+      if(isToday) cls += ' is-today';
+      const hp = highlightByDay[d];
+      if(hp){
+        cls += ' in-window';
+        const ic = pickIcon(hp.name, hp.category);
+        styleAttr = ` style="background:${hexToRgba(ic.color,0.14)};border:2px solid ${ic.color}"`;
+        titleAttr = ` title="${escapeHTML(hp.name)}${d===hp.day?' · fecha límite':' · ya se puede pagar'}"`;
+      }
+      cells += `<div class="${cls}"${styleAttr}${titleAttr}><span class="cal-daynum">${d}</span><span class="cal-dots">${icons}</span></div>`;
+    }
+    const totalCells = firstW + dim;
+    const trailing = (7 - (totalCells % 7)) % 7;
+    for(let i=0;i<trailing;i++) cells += '<div class="cal-cell is-blank"></div>';
+    els.calGrid.innerHTML = cells;
+
+    els.calListTitle.textContent = 'Pagos de ' + MONTH_LONG[m].toLowerCase();
+    if(occ.length===0){
+      els.calList.innerHTML = '<li class="empty-note">Sin pagos este mes.</li>';
+      els.calListTotal.textContent = money.format(0);
+      return;
+    }
+    let total=0;
+    let html='';
+    occ.forEach(o=>{
+      total += Number(o.payment.amount||0);
+      const status = occurrenceStatus(o.payment, o.date, today);
+      html += `<li class="payment-row" data-id="${o.payment.id}">
+        ${iconTileHTML(o.payment)}
+        <div class="row-main">
+          <span class="row-name">${escapeHTML(o.payment.name)}</span>
+          <span class="row-cad">${cadenceLabel(o.payment)}</span>
+        </div>
+        <div class="row-right">
+          <span class="row-amount">${money.format(o.payment.amount)}</span>
+          <span class="row-status ${status.cls}">${status.label}</span>
+        </div>
+      </li>`;
+    });
+    els.calList.innerHTML = html;
+    els.calListTotal.textContent = money.format(total);
+  }
+
+  document.getElementById('calPrev').addEventListener('click', ()=>{
+    let {y,m} = state.calView; m--; if(m<0){ m=11; y--; }
+    state.calView = {y,m,d:1}; renderCalendar();
+  });
+  document.getElementById('calNext').addEventListener('click', ()=>{
+    let {y,m} = state.calView; m++; if(m>11){ m=0; y++; }
+    state.calView = {y,m,d:1}; renderCalendar();
+  });
+
+  // ---------- event delegation for rows ----------
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('[data-action]');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    if(action==='pay') markPaid(id, btn.dataset.due);
+    else if(action==='edit') openEditModal(id);
+    else if(action==='del') confirmDelete(btn, id);
+  });
+
+  function markPaid(id, dueISO){
+    if(!state.db) return;
+    // Store the DUE DATE just covered (not today's date) — that's what lets the
+    // recurrence engine recognize this cycle as settled whether you pay early,
+    // right on time, or late, and correctly roll to the next occurrence.
+    const settledThrough = dueISO || toISO(todayObj());
+    state.db.collection('payments').doc(id).update({lastPaidDate: settledThrough}).then(()=>{
+      showToast('Marcado como pagado');
+    }).catch(()=> showToast('No se pudo guardar. Intenta de nuevo.'));
+  }
+
+  function confirmDelete(btn, id){
+    const row = btn.closest('.payment-row');
+    const name = row.querySelector('.row-name').textContent;
+    row.innerHTML = `<div class="row-confirm"><span>¿Eliminar «${escapeHTML(name)}»?</span>
+      <span><button type="button" class="btn btn-ghost" data-action="cancel-del">Cancelar</button>
+      <button type="button" class="btn btn-primary" data-action="do-del" data-id="${id}">Sí, eliminar</button></span></div>`;
+    row.querySelector('[data-action="cancel-del"]').addEventListener('click', render);
+    row.querySelector('[data-action="do-del"]').addEventListener('click', ()=>{
+      if(!state.db) return;
+      state.db.collection('payments').doc(id).delete().then(()=> showToast('Pago eliminado'))
+        .catch(()=> showToast('No se pudo eliminar.'));
+    });
+  }
+
+  // ---------- payment modal ----------
+  const paymentBackdrop = document.getElementById('paymentModalBackdrop');
+  const paymentForm = document.getElementById('paymentForm');
+  const recurringFields = document.getElementById('recurringFields');
+  const oneTimeFields = document.getElementById('oneTimeFields');
+  const monthlyFields = document.getElementById('monthlyFields');
+  const customDaysFields = document.getElementById('customDaysFields');
+  const anchorFieldWrap = document.getElementById('anchorFieldWrap');
+
+  function resetIconPicker(){
+    state.formIconDataUri = null;
+    document.getElementById('f-icon-preview').innerHTML = '🖼️';
+    document.getElementById('f-icon-preview').style.background = '';
+    document.getElementById('f-icon-remove-btn').hidden = true;
+  }
+  function showIconPreviewFromDataUri(uri){
+    document.getElementById('f-icon-preview').innerHTML = `<img src="${uri}" alt="">`;
+    document.getElementById('f-icon-preview').style.background = 'var(--surface-2)';
+    document.getElementById('f-icon-remove-btn').hidden = false;
+  }
+
+  function openAddModal(){
+    state.editingId = null;
+    document.getElementById('paymentModalTitle').textContent = 'Agregar pago';
+    paymentForm.reset();
+    document.getElementById('f-repeat-yes').checked = true;
+    document.getElementById('f-freq').value = 'monthly-1';
+    document.getElementById('f-day').value = 1;
+    document.getElementById('f-lastday').checked = false;
+    document.getElementById('f-haswindow').checked = false;
+    document.getElementById('windowStartWrap').hidden = true;
+    document.getElementById('f-windowstart').value = 1;
+    resetIconPicker();
+    syncFormVisibility();
+    paymentBackdrop.hidden = false;
+    document.getElementById('f-name').focus();
+  }
+
+  function openEditModal(id){
+    const p = state.payments.find(x=>x.id===id);
+    if(!p) return;
+    state.editingId = id;
+    document.getElementById('paymentModalTitle').textContent = 'Editar pago';
+    document.getElementById('f-name').value = p.name;
+    document.getElementById('f-category').value = p.category;
+    document.getElementById('f-amount').value = p.amount;
+    document.getElementById('f-notes').value = p.notes || '';
+    if(p.iconDataUri){ showIconPreviewFromDataUri(p.iconDataUri); state.formIconDataUri = p.iconDataUri; }
+    else resetIconPicker();
+    if(p.recurrenceType==='one_time'){
+      document.getElementById('f-repeat-no').checked = true;
+      document.getElementById('f-onetime-date').value = p.anchorDate;
+    } else {
+      document.getElementById('f-repeat-yes').checked = true;
+      if(p.recurrenceType==='interval_days'){
+        document.getElementById('f-freq').value = 'custom-days';
+        document.getElementById('f-interval').value = p.intervalDays;
+        document.getElementById('f-interval-start').value = p.anchorDate;
+      } else {
+        const k = p.monthsInterval||1;
+        document.getElementById('f-freq').value = k===1?'monthly-1':k===2?'monthly-2':k===3?'monthly-3':'monthly-1';
+        document.getElementById('f-day').value = p.day||1;
+        document.getElementById('f-lastday').checked = !!p.lastDayOfMonth;
+        document.getElementById('f-anchor').value = p.anchorDate;
+        const hasWindow = !!p.windowStartDay && p.windowStartDay !== p.day;
+        document.getElementById('f-haswindow').checked = hasWindow;
+        document.getElementById('windowStartWrap').hidden = !hasWindow;
+        document.getElementById('f-windowstart').value = p.windowStartDay || 1;
+      }
+    }
+    syncFormVisibility();
+    paymentBackdrop.hidden = false;
+    document.getElementById('f-name').focus();
+  }
+
+  function closePaymentModal(){ paymentBackdrop.hidden = true; }
+  document.getElementById('paymentCancelBtn').addEventListener('click', closePaymentModal);
+  document.getElementById('addPaymentBtn').addEventListener('click', openAddModal);
+
+  const iconFileInput = document.getElementById('f-icon-file');
+  const iconPickBtn = document.getElementById('f-icon-pick-btn');
+  const iconRemoveBtn = document.getElementById('f-icon-remove-btn');
+  iconPickBtn.addEventListener('click', ()=> iconFileInput.click());
+
+  function fileToIconDataURI(file, maxSize){
+    return new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        const img = new Image();
+        img.onload = ()=>{
+          let w = img.width, h = img.height;
+          const scale = Math.min(1, maxSize/Math.max(w,h));
+          w = Math.round(w*scale); h = Math.round(h*scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  iconFileInput.addEventListener('change', async ()=>{
+    const file = iconFileInput.files && iconFileInput.files[0];
+    iconFileInput.value = '';
+    if(!file) return;
+    iconPickBtn.textContent = 'Procesando…';
+    try{
+      const uri = await fileToIconDataURI(file, 160);
+      state.formIconDataUri = uri;
+      showIconPreviewFromDataUri(uri);
+    }catch(err){
+      showToast('No se pudo procesar la imagen.');
+    }
+    iconPickBtn.textContent = 'Subir imagen';
+  });
+  iconRemoveBtn.addEventListener('click', ()=>{
+    resetIconPicker();
+  });
+
+  function syncFormVisibility(){
+    const repeats = document.getElementById('f-repeat-yes').checked;
+    recurringFields.hidden = !repeats;
+    oneTimeFields.hidden = repeats;
+    const freq = document.getElementById('f-freq').value;
+    const isCustom = freq === 'custom-days';
+    monthlyFields.hidden = isCustom;
+    customDaysFields.hidden = !isCustom;
+    const k = freq==='monthly-2'?2:freq==='monthly-3'?3:1;
+    anchorFieldWrap.hidden = (k===1);
+  }
+  document.querySelectorAll('input[name="f-repeat"]').forEach(r=>r.addEventListener('change', syncFormVisibility));
+  document.getElementById('f-freq').addEventListener('change', syncFormVisibility);
+  document.getElementById('f-haswindow').addEventListener('change', function(){
+    document.getElementById('windowStartWrap').hidden = !this.checked;
+  });
+
+  paymentForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    if(!state.db) return;
+    const name = document.getElementById('f-name').value.trim();
+    const category = document.getElementById('f-category').value;
+    const amount = parseFloat(document.getElementById('f-amount').value);
+    const notes = document.getElementById('f-notes').value.trim();
+    if(!name || isNaN(amount)) return;
+
+    let data = { name, category, amount, notes, lastPaidDate: null, iconDataUri: state.formIconDataUri || null };
+    const repeats = document.getElementById('f-repeat-yes').checked;
+    const today = toISO(todayObj());
+
+    if(!repeats){
+      const d = document.getElementById('f-onetime-date').value || today;
+      data.recurrenceType = 'one_time';
+      data.anchorDate = d;
+      data.day = null; data.lastDayOfMonth = false; data.monthsInterval = 1; data.intervalDays = null; data.windowStartDay = null;
+    } else {
+      const freq = document.getElementById('f-freq').value;
+      if(freq === 'custom-days'){
+        const n = parseInt(document.getElementById('f-interval').value, 10) || 30;
+        const start = document.getElementById('f-interval-start').value || today;
+        data.recurrenceType = 'interval_days';
+        data.intervalDays = n;
+        data.anchorDate = start;
+        data.day = null; data.lastDayOfMonth = false; data.monthsInterval = 1; data.windowStartDay = null;
+      } else {
+        const k = freq==='monthly-2'?2:freq==='monthly-3'?3:1;
+        const lastday = document.getElementById('f-lastday').checked;
+        const day = parseInt(document.getElementById('f-day').value, 10) || 1;
+        const anchor = (k===1) ? '2020-01-01' : (document.getElementById('f-anchor').value || today);
+        const hasWindow = !lastday && document.getElementById('f-haswindow').checked;
+        const windowStart = hasWindow ? (parseInt(document.getElementById('f-windowstart').value, 10) || null) : null;
+        data.recurrenceType = 'monthly';
+        data.monthsInterval = k;
+        data.day = day;
+        data.lastDayOfMonth = lastday;
+        data.anchorDate = anchor;
+        data.intervalDays = null;
+        data.windowStartDay = (windowStart && windowStart < day) ? windowStart : null;
+      }
+    }
+
+    if(state.editingId){
+      const existing = state.payments.find(x=>x.id===state.editingId);
+      if(existing) data.lastPaidDate = existing.lastPaidDate || null;
+      state.db.collection('payments').doc(state.editingId).set(Object.assign({createdAt: existing && existing.createdAt || new Date().toISOString()}, data))
+        .then(()=>{ showToast('Pago actualizado'); closePaymentModal(); })
+        .catch(()=> showToast('No se pudo guardar.'));
+    } else {
+      data.createdAt = new Date().toISOString();
+      state.db.collection('payments').add(data)
+        .then(()=>{ showToast('Pago agregado'); closePaymentModal(); })
+        .catch(()=> showToast('No se pudo guardar.'));
+    }
+  });
+
+  // ---------- payroll modal ----------
+  const payrollBackdrop = document.getElementById('payrollModalBackdrop');
+  const payrollForm = document.getElementById('payrollForm');
+  function openPayrollModal(){
+    document.getElementById('p-interval').value = state.payroll.intervalDays || 14;
+    document.getElementById('p-last').value = state.payroll.anchorDate || toISO(todayObj());
+    payrollBackdrop.hidden = false;
+  }
+  document.getElementById('editPayrollBtn').addEventListener('click', openPayrollModal);
+  document.getElementById('payrollCancelBtn').addEventListener('click', ()=>{ payrollBackdrop.hidden = true; });
+  payrollForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    if(!state.db) return;
+    const intervalDays = parseInt(document.getElementById('p-interval').value,10) || 14;
+    const anchorDate = document.getElementById('p-last').value || toISO(todayObj());
+    state.db.doc('config/payroll').set({intervalDays, anchorDate}).then(()=>{
+      payrollBackdrop.hidden = true;
+      showToast('Nómina actualizada');
+    }).catch(()=> showToast('No se pudo guardar.'));
+  });
+
+  [paymentBackdrop, payrollBackdrop].forEach(bd=>{
+    bd.addEventListener('click', function(e){ if(e.target===bd) bd.hidden = true; });
+  });
+
+  // ---------- boot ----------
+  function boot(){
+    const db = firebase.firestore();
+    state.db = db;
+    els.addBtn.disabled = false;
+    els.payrollBtn.disabled = false;
+
+    db.doc('config/payroll').onSnapshot(snap=>{
+      state.payroll = snap.exists ? snap.data() : {intervalDays:14, anchorDate: toISO(todayObj())};
+      render();
+      if(state.activeTab==='calendario') renderCalendar();
+    }, ()=>{ showToast('No se pudo conectar con la base de datos.'); });
+
+    db.collection('payments').onSnapshot(qs=>{
+      state.payments = qs.docs.map(d=> Object.assign({id:d.id}, d.data()));
+      render();
+      if(state.activeTab==='calendario') renderCalendar();
+    }, ()=>{ showToast('No se pudo conectar con la base de datos.'); });
+  }
+  requireAccess(boot);
+})();
+</script>
+</body>
+</html>
