@@ -23,7 +23,7 @@ Sin build ni dependencias locales: HTML, CSS y JavaScript sueltos. Firebase se c
 - `comun.js`: `window.Comun` con el menú, el tema de cada mes (`TEMAS_DEL_MES`: color, saludo, fondo de emojis; `diasEspeciales()` para el calendario; es el único lugar donde se definen), `conectar()`, `guardarEnHistorial()`, `esCompartido()`, `CATEGORIAS`, `hoyISO()` y `quien()`.
 - `estilo.css`: estilos compartidos (variables `--accent`, `--paper`, `--ink`, etc.).
 
-Colecciones de Firestore: `payments`, `config/payroll`, `shared/splits`, `notes` e `history`.
+Colecciones de Firestore: `payments`, `config/payroll`, `shared/splits`, `notes`, `history` y `themes` (imágenes del mes: `themes/m1`…`m12` con versiones y colores, y `themes/m10_portada`, `_fondo`, `_mascota` con la imagen comprimida). Las imágenes del mes van en Firestore, nunca en el repositorio: el repositorio es público y suelen tener derechos de autor (Disney, bancos de imágenes).
 
 ## Reglas que no se deben romper
 
