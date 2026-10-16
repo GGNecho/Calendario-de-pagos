@@ -3,31 +3,84 @@
 (function(){
   "use strict";
 
+  // ---------- Tema de cada mes ----------
+  // Cada mes cambia el color de acento, el saludo bajo el título y un fondo muy
+  // tenue con los dos emojis de `fondo`. Para cambiar un mes, edítalo solo aquí.
+  const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const TEMAS_DEL_MES = [
-    {emoji:'❄️', name:'Año Nuevo',        light:{accent:'#2B5F8A',ink:'#EAF4FB'}, dark:{accent:'#8FCBEA',ink:'#163044'}},
-    {emoji:'💗', name:'San Valentín',      light:{accent:'#9C2F5C',ink:'#FBE7F0'}, dark:{accent:'#F0A8C4',ink:'#45182B'}},
-    {emoji:'🌱', name:'Primavera',         light:{accent:'#2F7A4E',ink:'#E6F6EC'}, dark:{accent:'#8FE0AE',ink:'#163322'}},
-    {emoji:'🌸', name:'Flores',            light:{accent:'#7A4FA6',ink:'#F3EAFB'}, dark:{accent:'#CBA8F0',ink:'#2E1C42'}},
-    {emoji:'💐', name:'Día de las Madres', light:{accent:'#B23A6B',ink:'#FBE7EF'}, dark:{accent:'#F0A0C0',ink:'#3A1626'}},
-    {emoji:'☀️', name:'Verano',            light:{accent:'#B4701A',ink:'#FBEEDC'}, dark:{accent:'#F0C878',ink:'#3A2A11'}},
-    {emoji:'🌊', name:'Vacaciones',        light:{accent:'#1A7A8A',ink:'#E2F6F8'}, dark:{accent:'#7FE0EE',ink:'#0F3338'}},
-    {emoji:'🌻', name:'Girasol',           light:{accent:'#B4820E',ink:'#FBF3DC'}, dark:{accent:'#F0D878',ink:'#3A2E0D'}},
-    {emoji:'🇲🇽', name:'Mes Patrio',        light:{accent:'#2E7D4F',ink:'#EAF7EE'}, dark:{accent:'#8FE0AE',ink:'#163322'}},
-    {emoji:'🎃', name:'Halloween',         light:{accent:'#B4530E',ink:'#FBE9DC'}, dark:{accent:'#F0A868',ink:'#3A200D'}},
-    {emoji:'🎇', name:'Día de Muertos',    light:{accent:'#8A2F6E',ink:'#F8E6F2'}, dark:{accent:'#E0A0CC',ink:'#38162C'}},
-    {emoji:'🎄', name:'Navidad',           light:{accent:'#A6271F',ink:'#FBE4E1'}, dark:{accent:'#F0978C',ink:'#3A130F'}},
+    {emoji:'❄️', name:'Año Nuevo',        fondo:['❄️','🥂'], light:{accent:'#2B5F8A',ink:'#EAF4FB'}, dark:{accent:'#8FCBEA',ink:'#163044'}},
+    {emoji:'💗', name:'San Valentín',      fondo:['💗','💌'], light:{accent:'#9C2F5C',ink:'#FBE7F0'}, dark:{accent:'#F0A8C4',ink:'#45182B'}},
+    {emoji:'🌱', name:'Primavera',         fondo:['🌱','🦋'], light:{accent:'#2F7A4E',ink:'#E6F6EC'}, dark:{accent:'#8FE0AE',ink:'#163322'}},
+    {emoji:'🌸', name:'Flores',            fondo:['🌸','🌷'], light:{accent:'#7A4FA6',ink:'#F3EAFB'}, dark:{accent:'#CBA8F0',ink:'#2E1C42'}},
+    {emoji:'💐', name:'Día de las Madres', fondo:['💐','🌹'], light:{accent:'#B23A6B',ink:'#FBE7EF'}, dark:{accent:'#F0A0C0',ink:'#3A1626'}},
+    {emoji:'☀️', name:'Verano',            fondo:['☀️','🍉'], light:{accent:'#B4701A',ink:'#FBEEDC'}, dark:{accent:'#F0C878',ink:'#3A2A11'}},
+    {emoji:'🌊', name:'Vacaciones',        fondo:['🌊','🐚'], light:{accent:'#1A7A8A',ink:'#E2F6F8'}, dark:{accent:'#7FE0EE',ink:'#0F3338'}},
+    {emoji:'🌻', name:'Girasol',           fondo:['🌻','🐝'], light:{accent:'#B4820E',ink:'#FBF3DC'}, dark:{accent:'#F0D878',ink:'#3A2E0D'}},
+    {emoji:'🇲🇽', name:'Mes Patrio',        fondo:['🌶️','🎉'], light:{accent:'#2E7D4F',ink:'#EAF7EE'}, dark:{accent:'#8FE0AE',ink:'#163322'}},
+    {emoji:'🎃', name:'Halloween',         fondo:['🎃','🦇'], light:{accent:'#B4530E',ink:'#FBE9DC'}, dark:{accent:'#F0A868',ink:'#3A200D'}},
+    {emoji:'💀', name:'Día de Muertos',    fondo:['💀','🌼'], light:{accent:'#8A2F6E',ink:'#F8E6F2'}, dark:{accent:'#E0A0CC',ink:'#38162C'}},
+    {emoji:'🎄', name:'Navidad',           fondo:['🎄','⭐'], light:{accent:'#A6271F',ink:'#FBE4E1'}, dark:{accent:'#F0978C',ink:'#3A130F'}},
   ];
-  // El color de acento cambia con el mes, igual que en el Calendario.
-  function aplicarTemaDelMes(){
-    const tema = TEMAS_DEL_MES[new Date().getMonth()];
-    const explicito = document.documentElement.getAttribute('data-theme');
-    const oscuro = explicito ? explicito === 'dark' : (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
-    const c = oscuro ? tema.dark : tema.light;
-    document.documentElement.style.setProperty('--accent', c.accent);
-    document.documentElement.style.setProperty('--accent-ink', c.ink);
+
+  // Días especiales que se marcan en la vista Mes del Calendario.
+  function diasEspeciales(y, m){
+    const fijos = {
+      0:{1:['🥂','Año Nuevo'], 6:['👑','Día de Reyes']},
+      1:{2:['🫔','Día de la Candelaria'], 14:['💗','San Valentín']},
+      3:{30:['🧸','Día del Niño']},
+      4:{10:['💐','Día de las Madres']},
+      8:{15:['🔔','Noche del Grito'], 16:['🇲🇽','Día de la Independencia']},
+      9:{31:['🎃','Halloween']},
+      10:{1:['🕯️','Día de Todos los Santos'], 2:['💀','Día de Muertos']},
+      11:{12:['🌹','Día de la Virgen'], 24:['🌟','Nochebuena'], 25:['🎄','Navidad'], 31:['🥂','Fin de año']},
+    };
+    const out = Object.assign({}, fijos[m] || {});
+    if(m === 5){ // Día del Padre: tercer domingo de junio
+      const primero = new Date(y, 5, 1).getDay();
+      out[1 + ((7 - primero) % 7) + 14] = ['👔','Día del Padre'];
+    }
+    return out;
   }
-  aplicarTemaDelMes();
-  if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', aplicarTemaDelMes);
+
+  function oscuro(){
+    const explicito = document.documentElement.getAttribute('data-theme');
+    return explicito ? explicito === 'dark' : !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+  function fondoSVG(tema, dark){
+    const [a, b] = tema.fondo;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><g opacity="${dark ? 0.07 : 0.09}" font-size="26">`
+      + `<text x="22" y="52" transform="rotate(-14 36 42)">${a}</text><text x="112" y="140" transform="rotate(12 126 130)">${b}</text>`
+      + `</g></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  }
+  let mesDelTema = new Date().getMonth();
+  // Aplica el tema de un mes (por defecto el actual). El Calendario lo llama al
+  // moverse entre meses para que el color siga al mes que se está viendo.
+  function aplicarTema(mes){
+    if(mes !== undefined) mesDelTema = mes;
+    const tema = TEMAS_DEL_MES[mesDelTema];
+    const dark = oscuro();
+    const c = dark ? tema.dark : tema.light;
+    const root = document.documentElement.style;
+    root.setProperty('--accent', c.accent);
+    root.setProperty('--accent-ink', c.ink);
+    root.setProperty('--bg-image', fondoSVG(tema, dark));
+    const linea = document.querySelector('.tema-mes');
+    if(linea) linea.textContent = 'Tema de ' + MESES[mesDelTema] + ': ' + tema.name + ' ' + tema.emoji;
+  }
+  aplicarTema();
+  if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=> aplicarTema());
+
+  // El saludo del mes va justo debajo del título de cada página.
+  function pintarSaludo(){
+    const h1 = document.querySelector('.hero h1');
+    if(!h1 || document.querySelector('.tema-mes')) return;
+    const p = document.createElement('p');
+    p.className = 'tema-mes';
+    h1.insertAdjacentElement('afterend', p);
+    aplicarTema();
+  }
+  if(document.body) pintarSaludo(); else document.addEventListener('DOMContentLoaded', pintarSaludo);
 
   const PAGINAS = [
     {href:'index.html',    label:'Calendario'},
@@ -153,5 +206,5 @@
     return /^nemecio/i.test(email) ? '<span class="who a">N</span>' : '<span class="who b">MF</span>';
   }
 
-  window.Comun = { esCompartido, LLAVES_ANTERIORES, guardarEnHistorial, hoyISO, CATEGORIAS, conectar, quien, elegirIcono, iconoHTML };
+  window.Comun = { esCompartido, LLAVES_ANTERIORES, guardarEnHistorial, hoyISO, CATEGORIAS, conectar, quien, elegirIcono, iconoHTML, aplicarTema, diasEspeciales };
 })();

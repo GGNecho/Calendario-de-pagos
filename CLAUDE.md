@@ -20,7 +20,7 @@ Sin build ni dependencias locales: HTML, CSS y JavaScript sueltos. Firebase se c
 - `notas.html`: bloc de notas compartido; una nota se puede pasar al calendario o al historial.
 - `historial.html`: lo ya pagado, total por mes, comparación con el mes anterior y gasto por categoría.
 - `acceso.js`: pantalla de entrada (Google o enlace por correo) y `window.requireAccess(onReady)`.
-- `comun.js`: `window.Comun` con el menú, el tema de color de cada mes, `conectar()`, `guardarEnHistorial()`, `esCompartido()`, `CATEGORIAS`, `hoyISO()` y `quien()`.
+- `comun.js`: `window.Comun` con el menú, el tema de cada mes (`TEMAS_DEL_MES`: color, saludo, fondo de emojis; `diasEspeciales()` para el calendario; es el único lugar donde se definen), `conectar()`, `guardarEnHistorial()`, `esCompartido()`, `CATEGORIAS`, `hoyISO()` y `quien()`.
 - `estilo.css`: estilos compartidos (variables `--accent`, `--paper`, `--ink`, etc.).
 
 Colecciones de Firestore: `payments`, `config/payroll`, `shared/splits`, `notes` e `history`.

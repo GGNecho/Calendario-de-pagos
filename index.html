@@ -17,8 +17,7 @@
 body{
   background-color:var(--paper);
   background-image:var(--bg-image);
-  background-attachment:fixed;
-  background-size:cover;
+  background-size:180px 180px;
   color:var(--ink);
   font-family:var(--font-body);
   margin:0;
@@ -188,6 +187,21 @@ body{
   box-shadow:0 1px 3px rgba(0,0,0,0.2);
 }
 .cal-icon-mini img{ width:100%; height:100%; object-fit:cover; display:block; }
+.cal-cell{ position:relative; }
+.cal-fiesta{ position:absolute; top:2px; right:3px; font-size:10px; line-height:1; }
+.cal-fiestas{ margin:12px 2px 0; display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12.5px; color:var(--ink-soft); }
+.cal-ic{ position:relative; display:inline-flex; }
+.cal-ic.is-paid > span{ opacity:.4; filter:grayscale(1); }
+.cal-ic.is-paid::after{ content:'✓'; position:absolute; right:-4px; bottom:-4px; width:13px; height:13px; border-radius:50%;
+  background:var(--ok); color:var(--ok-ink); font-size:8.5px; font-weight:700; line-height:13px; text-align:center; }
+.cal-dots .cal-ic + .cal-ic{ margin-left:1px; }
+.month-progress{ padding:2px 10px 10px; display:flex; flex-direction:column; gap:8px; }
+.mp-bar{ height:8px; border-radius:999px; background:var(--surface-2); overflow:hidden; }
+.mp-bar span{ display:block; height:100%; border-radius:999px; background:var(--ok); }
+.mp-nums{ display:flex; justify-content:space-between; font-size:13px; color:var(--ink-soft); }
+.mp-nums b{ color:var(--ink); }
+.payment-row.is-paid .row-name{ color:var(--ink-soft); }
+.row-undo{ flex:0 0 auto; padding:10px 4px 10px 8px; font-size:12.5px; color:var(--ink-soft); text-decoration:underline; }
 .cal-cell.in-window{ box-shadow:none; }
 .cal-cell.in-window.is-today{ box-shadow:inset 0 0 0 2px var(--accent); }
 
@@ -215,13 +229,15 @@ body{
 
 .toast{ position:fixed; bottom:calc(22px + env(safe-area-inset-bottom, 0px)); left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:999px; font-size:13.5px; box-shadow:var(--card-shadow); z-index:60; }
 .toast[hidden]{ display:none; }
+.toast{ display:flex; align-items:center; gap:14px; white-space:nowrap; }
+.toast button{ background:none; border:none; padding:6px 2px; margin:-6px 0; color:var(--paper); font:700 13.5px var(--font-body); text-decoration:underline; cursor:pointer; }
 </style>
 </head>
 <body>
 <div class="page">
   <header class="hero">
     <div class="hero-text">
-      <h1>Calendario de Pagos <span class="month-badge" id="monthThemeBadge" title=""></span></h1>
+      <h1>Calendario de Pagos</h1>
       <p>Nemecio · Ciudad Madero</p>
     </div>
   </header>
@@ -261,6 +277,7 @@ body{
       </div>
       <div class="cal-weekdays"><span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span></div>
       <div class="cal-grid" id="calGrid"></div>
+      <p class="cal-fiestas" id="calFiestas" hidden></p>
     </div>
     <div class="bucket">
       <div class="bucket-head"><h2 id="calListTitle">Pagos del mes</h2><span class="bucket-total" id="calListTotal">—</span></div>
@@ -496,6 +513,19 @@ body{
     else if(payment.createdAt) from = parseISO(String(payment.createdAt).slice(0,10));
     return rawNext(payment, from);
   }
+  // La fecha que tocaba antes de `date` (null si no hay), para desmarcar un pago.
+  function prevOccurrence(p, date){
+    if(p.recurrenceType==='monthly'){
+      const abs = monthAbs(date) - (p.monthsInterval||1);
+      if(abs < monthAbs(parseISO(p.anchorDate))) return null;
+      return occurrenceAtMonth(abs, p.day, p.lastDayOfMonth);
+    }
+    if(p.recurrenceType==='interval_days'){
+      const d = addDays(date, -p.intervalDays);
+      return cmp(d, parseISO(p.anchorDate)) < 0 ? null : d;
+    }
+    return null;
+  }
   function nextPayday(payroll, today){
     const anchor=parseISO(payroll.anchorDate);
     const n=payroll.intervalDays||14;
@@ -526,43 +556,8 @@ body{
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
-  // ---------- monthly themes (automatic seasonal reskin) ----------
-  const MONTH_THEMES = [
-    {emoji:'❄️', name:'Año Nuevo',        light:{accent:'#2B5F8A',ink:'#EAF4FB'}, dark:{accent:'#8FCBEA',ink:'#163044'}},
-    {emoji:'💗', name:'San Valentín',      light:{accent:'#9C2F5C',ink:'#FBE7F0'}, dark:{accent:'#F0A8C4',ink:'#45182B'}},
-    {emoji:'🌱', name:'Primavera',         light:{accent:'#2F7A4E',ink:'#E6F6EC'}, dark:{accent:'#8FE0AE',ink:'#163322'}},
-    {emoji:'🌸', name:'Flores',            light:{accent:'#7A4FA6',ink:'#F3EAFB'}, dark:{accent:'#CBA8F0',ink:'#2E1C42'}},
-    {emoji:'💐', name:'Día de las Madres', light:{accent:'#B23A6B',ink:'#FBE7EF'}, dark:{accent:'#F0A0C0',ink:'#3A1626'}},
-    {emoji:'☀️', name:'Verano',            light:{accent:'#B4701A',ink:'#FBEEDC'}, dark:{accent:'#F0C878',ink:'#3A2A11'}},
-    {emoji:'🌊', name:'Vacaciones',        light:{accent:'#1A7A8A',ink:'#E2F6F8'}, dark:{accent:'#7FE0EE',ink:'#0F3338'}},
-    {emoji:'🌻', name:'Girasol',           light:{accent:'#B4820E',ink:'#FBF3DC'}, dark:{accent:'#F0D878',ink:'#3A2E0D'}},
-    {emoji:'🇲🇽', name:'Mes Patrio',        light:{accent:'#2E7D4F',ink:'#EAF7EE'}, dark:{accent:'#8FE0AE',ink:'#163322'}},
-    {emoji:'🎃', name:'Halloween',         light:{accent:'#B4530E',ink:'#FBE9DC'}, dark:{accent:'#F0A868',ink:'#3A200D'}},
-    {emoji:'🎇', name:'Día de Muertos',    light:{accent:'#8A2F6E',ink:'#F8E6F2'}, dark:{accent:'#E0A0CC',ink:'#38162C'}},
-    {emoji:'🎄', name:'Navidad',           light:{accent:'#A6271F',ink:'#FBE4E1'}, dark:{accent:'#F0978C',ink:'#3A130F'}},
-  ];
-  function isDarkMode(){
-    const explicit = document.documentElement.getAttribute('data-theme');
-    if(explicit==='dark') return true;
-    if(explicit==='light') return false;
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }
-  let lastThemeMonth = todayObj().m;
-  function applyMonthTheme(monthIdx){
-    if(monthIdx===undefined) monthIdx = lastThemeMonth;
-    lastThemeMonth = monthIdx;
-    const theme = MONTH_THEMES[monthIdx];
-    const pick = isDarkMode() ? theme.dark : theme.light;
-    const root = document.documentElement;
-    root.style.setProperty('--accent', pick.accent);
-    root.style.setProperty('--accent-ink', pick.ink);
-    const badge = document.getElementById('monthThemeBadge');
-    if(badge){ badge.textContent = theme.emoji; badge.title = 'Tema de ' + MONTH_LONG[monthIdx] + ': ' + theme.name; }
-  }
-  if(window.matchMedia){
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>applyMonthTheme());
-  }
-  applyMonthTheme(todayObj().m);
+  // ---------- monthly themes (shared, see comun.js) ----------
+  const applyMonthTheme = (m) => Comun.aplicarTema(m);
 
   // ---------- state ----------
   const state = { payments:null, payroll:null, db:null, editingId:null, calView:todayObj(), activeTab:'quincena', formIconDataUri:null };
@@ -586,11 +581,19 @@ body{
     calListTitle: document.getElementById('calListTitle'),
   };
 
-  function showToast(msg){
+  // Con `action` ({label, run}) el aviso lleva un botón (p. ej. "Deshacer") y dura más.
+  function showToast(msg, action){
     els.toast.textContent = msg;
+    if(action){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = action.label;
+      b.addEventListener('click', ()=>{ els.toast.hidden = true; action.run(); });
+      els.toast.appendChild(b);
+    }
     els.toast.hidden = false;
     clearTimeout(showToast._t);
-    showToast._t = setTimeout(()=>{ els.toast.hidden = true; }, 2600);
+    showToast._t = setTimeout(()=>{ els.toast.hidden = true; }, action ? 7000 : 2600);
   }
   function escapeHTML(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -769,6 +772,7 @@ body{
       }
     });
 
+    const fiestas = Comun.diasEspeciales(y, m);
     const firstW = weekdayMon({y,m,d:1});
     const dim = daysInMonth(y,m);
     const today = todayObj();
@@ -777,12 +781,17 @@ body{
     for(let d=1; d<=dim; d++){
       const isToday = today.y===y && today.m===m && today.d===d;
       const dayOcc = byDay[d]||[];
+      // Lo ya pagado se ve apagado y con una palomita.
+      const iconFor = (o, variant) => {
+        const paid = occurrenceStatus(o.payment, o.date, today).cls === 'ok';
+        return `<span class="cal-ic${paid?' is-paid':''}">${miniIconHTML(o.payment, variant)}</span>`;
+      };
       let icons='';
       if(dayOcc.length===1){
-        icons = miniIconHTML(dayOcc[0].payment, 'solo');
+        icons = iconFor(dayOcc[0], 'solo');
       } else if(dayOcc.length>1){
         const shown = dayOcc.slice(0,3);
-        icons = shown.map(o=>miniIconHTML(o.payment,'mini')).join('');
+        icons = shown.map(o=>iconFor(o,'mini')).join('');
         if(dayOcc.length>3) icons += `<span class="cal-more">+${dayOcc.length-3}</span>`;
       }
 
@@ -792,13 +801,19 @@ body{
       if(isToday) cls += ' is-today';
       const hp = highlightByDay[d];
       if(hp){
+        // Días en que ya se puede pagar: solo un tinte; el borde queda para la fecha límite.
         cls += ' in-window';
         const ic = pickIcon(hp.name, hp.category);
-        styleAttr = ` style="background:${hexToRgba(ic.color,0.14)};border:2px solid ${ic.color}"`;
+        styleAttr = ` style="background:${hexToRgba(ic.color,0.16)}${d===hp.day?';box-shadow:inset 0 0 0 2px '+ic.color:''}"`;
         titleAttr = ` title="${escapeHTML(hp.name)}${d===hp.day?' · fecha límite':' · ya se puede pagar'}"`;
       }
-      cells += `<div class="${cls}"${styleAttr}${titleAttr}><span class="cal-daynum">${d}</span><span class="cal-dots">${icons}</span></div>`;
+      const fiesta = fiestas[d] ? `<span class="cal-fiesta" title="${fiestas[d][1]}">${fiestas[d][0]}</span>` : '';
+      cells += `<div class="${cls}"${styleAttr}${titleAttr}>${fiesta}<span class="cal-daynum">${d}</span><span class="cal-dots">${icons}</span></div>`;
     }
+    const lista = Object.keys(fiestas).map(Number).sort((a,b)=>a-b);
+    const fiestasEl = document.getElementById('calFiestas');
+    fiestasEl.hidden = !lista.length;
+    fiestasEl.innerHTML = lista.map(d=>`<span>${fiestas[d][0]} ${d} ${escapeHTML(fiestas[d][1])}</span>`).join('');
     const totalCells = firstW + dim;
     const trailing = (7 - (totalCells % 7)) % 7;
     for(let i=0;i<trailing;i++) cells += '<div class="cal-cell is-blank"></div>';
@@ -810,14 +825,31 @@ body{
       els.calListTotal.textContent = money.format(0);
       return;
     }
-    let total=0;
-    let html='';
+    // Primero lo que falta, luego lo ya pagado; arriba, cuánto va pagado del mes.
+    let total=0, paidSum=0;
+    let pending='', paidHtml='';
     occ.forEach(o=>{
-      total += Number(o.payment.amount||0);
+      const amount = Number(o.payment.amount||0);
+      total += amount;
       const status = occurrenceStatus(o.payment, o.date, today);
-      html += `<li class="payment-row" data-id="${o.payment.id}">${rowOpenHTML(o.payment, status)}</li>`;
+      if(status.cls==='ok'){
+        paidSum += amount;
+        const iso = toISO(o.date);
+        const undo = o.payment.lastPaidDate===iso
+          ? `<button type="button" class="btn-link row-undo" data-action="unpay" data-id="${o.payment.id}" data-due="${iso}">Desmarcar</button>` : '';
+        paidHtml += `<li class="payment-row is-paid" data-id="${o.payment.id}">${rowOpenHTML(o.payment, status)}${undo}</li>`;
+      } else {
+        pending += `<li class="payment-row" data-id="${o.payment.id}">${rowOpenHTML(o.payment, status)}</li>`;
+      }
     });
-    els.calList.innerHTML = html;
+    const pct = total ? Math.round(paidSum/total*100) : 0;
+    els.calList.innerHTML =
+      `<li class="month-progress">
+        <div class="mp-bar"><span style="width:${pct}%"></span></div>
+        <div class="mp-nums"><span>Pagado <b class="money">${money.format(paidSum)}</b></span><span>Falta <b class="money">${money.format(total-paidSum)}</b></span></div>
+      </li>`
+      + (pending || '<li class="empty-note">Todo pagado este mes.</li>')
+      + (paidHtml ? '<li class="divider-later">Ya pagado</li>' + paidHtml : '');
     els.calListTotal.textContent = money.format(total);
   }
 
@@ -838,6 +870,7 @@ body{
     const action = btn.dataset.action;
     if(action==='pay'){ btn.classList.add('is-done'); markPaid(id, btn.dataset.due, btn); }
     else if(action==='edit') openEditModal(id);
+    else if(action==='unpay') unmarkPaid(id, btn.dataset.due);
   });
 
   function markPaid(id, dueISO, btn){
@@ -847,8 +880,9 @@ body{
     // right on time, or late, and correctly roll to the next occurrence.
     const settledThrough = dueISO || toISO(todayObj());
     const p = state.payments.find(x=>x.id===id);
+    const before = p ? (p.lastPaidDate || null) : null;
     state.db.collection('payments').doc(id).update({lastPaidDate: settledThrough}).then(()=>{
-      showToast('Marcado como pagado');
+      showToast('Marcado como pagado', {label:'Deshacer', run:()=> unmarkPaid(id, settledThrough, before)});
       // Una entrada por pago y fecha: si se vuelve a marcar el mismo, no se duplica.
       if(p) Comun.guardarEnHistorial(state.db, {
         name: p.name, amount: p.amount, category: p.category, date: toISO(todayObj()),
@@ -858,6 +892,23 @@ body{
       if(btn) btn.classList.remove('is-done');
       showToast('No se pudo guardar. Intenta de nuevo.');
     });
+  }
+
+  // Quita la marca de pagado de la fecha `dueISO` y su registro en el Historial.
+  // `restoreTo` es la marca que había antes (al deshacer recién marcado); si no se
+  // sabe, vuelve a la fecha anterior que tocaba pagar.
+  function unmarkPaid(id, dueISO, restoreTo){
+    const p = state.payments && state.payments.find(x=>x.id===id);
+    if(!state.db || !p) return;
+    let back = restoreTo;
+    if(back === undefined){
+      const prev = prevOccurrence(p, parseISO(dueISO));
+      back = prev ? toISO(prev) : null;
+    }
+    state.db.collection('payments').doc(id).update({lastPaidDate: back}).then(()=>{
+      showToast('Pago desmarcado');
+      state.db.collection('history').doc(id + '_' + dueISO).delete().catch(()=>{});
+    }).catch(()=> showToast('No se pudo desmarcar. Intenta de nuevo.'));
   }
 
   // Eliminar desde la ficha del pago: el primer toque pide confirmar, el segundo elimina.
