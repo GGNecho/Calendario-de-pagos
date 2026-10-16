@@ -7,6 +7,7 @@
   const PERMITIDOS = [
     "nemecioagg@gmail.com",
     "mffpb09@hotmail.com",
+    "mariafpb09@gmail.com",
   ];
   const EMAIL_KEY = 'acceso-email-para-enlace';
 
