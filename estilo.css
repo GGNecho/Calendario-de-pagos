@@ -109,3 +109,22 @@ textarea{ resize:vertical; min-height:64px; }
 .toast[hidden]{ display:none; }
 .card h2, .list-head h2, .bucket-head h2{ letter-spacing:-0.005em; }
 @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
+
+/* ---------- Computadora: dos columnas en pantallas anchas ----------
+   .dos-col en .page: la primera columna (más angosta) lleva el resumen o el
+   formulario y se queda fija al bajar (.fijo); la segunda, las listas. */
+.col-lado, .col-main{ display:flex; flex-direction:column; gap:20px; min-width:0; }
+@media (min-width:960px){
+  body .page{ max-width:1120px; padding-left:32px; padding-right:32px; position:relative; }
+  body .page.dos-col{ display:grid; grid-template-columns:minmax(0,380px) minmax(0,1fr); gap:20px 28px; align-items:start; }
+  body .page.dos-col > .hero, body .page.dos-col > .tema-portada{ grid-column:1 / -1; }
+  .fijo{ position:sticky; top:72px; }
+  /* La portada va a un lado del título y se desvanece hacia él (las imágenes
+     suelen ser chicas y estiradas a lo ancho se verían borrosas). */
+  body .tema-portada{ position:absolute; top:0; right:32px; width:min(560px, 50%); height:250px; margin:0;
+    -webkit-mask-image:linear-gradient(to left, #000 55%, transparent), linear-gradient(#000 60%, transparent);
+    -webkit-mask-composite:source-in; mask-image:linear-gradient(to left, #000 55%, transparent), linear-gradient(#000 60%, transparent);
+    mask-composite:intersect; }
+  body.con-portada .hero{ min-height:206px; }
+  body .hero h1{ font-size:40px; }
+}

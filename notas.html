@@ -30,13 +30,13 @@ details[open] summary::after{ content:' ▴'; }
 </style>
 </head>
 <body>
-<div class="page">
+<div class="page dos-col">
   <header class="hero">
     <h1>Notas</h1>
     <p>Apunten aquí lo que haya que pagar o lo que ya gastaron. Después pásenlo al calendario o al historial.</p>
   </header>
 
-  <form class="card" id="addForm" autocomplete="off">
+  <form class="card fijo" id="addForm" autocomplete="off">
     <h2>Nueva nota</h2>
     <textarea id="noteText" placeholder="Ej. Súper 850, regalo de cumpleaños, pagar el seguro del coche…" required></textarea>
     <div class="add-row">
@@ -46,6 +46,7 @@ details[open] summary::after{ content:' ▴'; }
     <p class="muted" style="margin:8px 0 0">Si escribes el monto en el texto (por ejemplo "Súper 850"), lo tomo de ahí.</p>
   </form>
 
+  <div class="col-main">
   <section class="card">
     <h2>Pendientes</h2>
     <div id="openList"><div class="empty">Cargando…</div></div>
@@ -57,6 +58,7 @@ details[open] summary::after{ content:' ▴'; }
       <div id="doneList" style="margin-top:8px"></div>
     </details>
   </section>
+  </div>
 </div>
 
 <div class="modal-backdrop" id="gastoBackdrop" hidden>
