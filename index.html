@@ -74,17 +74,18 @@ body{
 .view{ display:flex; flex-direction:column; gap:20px; }
 .view[hidden]{ display:none; }
 
-/* Resumen de la quincena: una sola tarjeta con tres columnas, también en el teléfono. */
-.stats{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius-xl); box-shadow:var(--card-shadow); overflow:hidden; }
-.stat-tile{ padding:14px 14px 13px; display:flex; flex-direction:column; gap:3px; min-width:0; }
-.stat-tile + .stat-tile{ border-left:1px solid var(--border); }
-.stat-label{ font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
-.stat-value{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:clamp(17px,4.8vw,22px); font-weight:600; letter-spacing:-0.02em; white-space:nowrap; }
-.stat-tile.is-critical .stat-value{ color:var(--critical); }
-.stat-tile.is-accent .stat-value{ color:var(--accent); }
-.stat-sub{ font-size:12px; color:var(--ink-faint); }
-.stat-sub button{ background:none;border:none;padding:0;margin-left:6px;color:var(--accent);font-size:12.5px;font-family:var(--font-body);text-decoration:underline;cursor:pointer; }
+/* Resumen de la quincena: cuánto hay que juntar antes de la próxima nómina, dicho en una frase. */
+.summary{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl); box-shadow:var(--card-shadow);
+  padding:18px 18px 16px; display:flex; flex-direction:column; gap:4px; }
+.sum-lead{ margin:0; font-size:14.5px; color:var(--ink-soft); }
+.sum-lead b{ color:var(--ink); }
+.sum-amount{ margin:2px 0 0; font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600;
+  font-size:clamp(34px,10vw,42px); letter-spacing:-0.03em; line-height:1.05; color:var(--critical); }
+.summary.is-clear .sum-amount{ color:var(--ok); }
+.sum-sub{ margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); display:flex; flex-wrap:wrap; align-items:center; gap:2px 10px; }
+.sum-sub .btn-link{ color:var(--accent); text-decoration:underline; padding:8px 0; font-size:13.5px; }
+.sum-sub .btn-link:hover{ color:var(--accent); }
+.add-main{ width:100%; padding:13px 16px; font-size:15px; }
 
 .bucket{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl); box-shadow:var(--card-shadow); overflow:hidden; }
 .bucket-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:16px 18px 10px; }
@@ -109,15 +110,28 @@ body{
 .icon-tile img{ width:100%; height:100%; object-fit:cover; display:block; }
 .icon-upload-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .icon-preview{ width:48px; height:48px; border-radius:14px; font-size:22px; background:var(--surface-2); border:1px solid var(--border); }
+/* Casilla para marcar como pagado: círculo vacío mientras está pendiente. El botón
+   mide 44px para el dedo; el círculo visible es el ::before. */
 .check{
-  flex:0 0 auto; width:24px; height:24px; border-radius:8px;
-  border:1.5px solid var(--border); background:var(--surface-2);
-  cursor:pointer; display:flex; align-items:center; justify-content:center;
-  color:var(--ok); font-size:14px; line-height:1;
+  flex:0 0 auto; width:44px; height:44px; margin:-6px -8px -6px -6px; padding:0;
+  border:none; background:none; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  border-radius:999px;
 }
-.check:hover{ border-color:var(--ok); }
+.check::before{
+  content:''; width:24px; height:24px; border-radius:50%; box-sizing:border-box;
+  border:2px solid var(--ink-faint); display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:700; line-height:1; color:var(--ok-ink);
+}
+.check:hover::before{ border-color:var(--ok); content:'✓'; color:var(--ok); }
+.check.is-done::before{ content:'✓'; background:var(--ok); border-color:var(--ok); color:var(--ok-ink); }
+.check:focus-visible{ outline:2px solid var(--accent); outline-offset:-4px; }
+.row-open{ flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:11px; padding:0; margin:0;
+  background:none; border:none; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+.row-open:focus-visible{ outline:2px solid var(--accent); outline-offset:4px; border-radius:var(--radius-sm); }
 .row-main{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:1px; }
-.row-name{ font-weight:600; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* Hasta dos renglones para que los nombres largos se lean completos. */
+.row-name{ font-weight:600; font-size:14.5px; line-height:1.25; overflow:hidden; overflow-wrap:anywhere;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
 .row-cad{ font-size:12px; color:var(--ink-faint); }
 .row-right{ flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
 .row-amount{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600; font-size:14.5px; }
@@ -126,15 +140,12 @@ body{
 .row-status.warn{ color:var(--warn); background:var(--warn-ink); }
 .row-status.critical{ color:var(--critical); background:var(--critical-ink); }
 .row-status.neutral{ color:var(--ink-soft); background:var(--neutral-ink); }
-.row-actions{ flex:0 0 auto; display:flex; gap:0; margin-left:2px; }
-.icon-btn{ width:26px; height:26px; border:none; background:transparent; border-radius:8px; color:var(--ink-faint); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; }
-.icon-btn:hover{ background:var(--surface-2); color:var(--ink); }
-
-.divider-later{ padding:10px 14px 4px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); }
+.divider-later{ padding:12px 14px 4px; font-size:12.5px; font-weight:600; color:var(--ink-faint); }
 .empty-note{ padding:20px 14px; color:var(--ink-faint); font-size:13.5px; }
-
-.row-confirm{ flex:1; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:13.5px; padding:4px 6px; }
-.row-confirm .btn{ padding:5px 10px; font-size:12.5px; }
+.modal h2:focus{ outline:none; }
+.btn.btn-danger{ background:transparent; border-color:transparent; color:var(--critical); margin-right:auto; }
+.btn.btn-danger:hover{ border-color:var(--critical); }
+.btn.btn-danger.is-armed{ background:var(--critical); border-color:var(--critical); color:var(--critical-ink); }
 
 .toolbar{ display:flex; gap:10px; flex-wrap:wrap; }
 .btn{ font-family:var(--font-body); font-weight:600; font-size:14px; padding:10px 16px; border-radius:999px; border:1px solid var(--border); background:var(--surface); color:var(--ink); cursor:pointer; }
@@ -151,7 +162,7 @@ body{
 .cal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
 .cal-label{ font-family:var(--font-body); font-weight:700; font-size:15px; }
 .cal-nav{ display:flex; gap:6px; }
-.cal-nav-btn{ width:30px; height:30px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.cal-nav-btn{ width:40px; height:40px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .cal-nav-btn:hover{ border-color:var(--ink-faint); }
 .cal-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
 .cal-weekdays span{ text-align:center; font-size:10.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em; }
@@ -195,7 +206,8 @@ body{
 .field-row .field{ flex:1; }
 .checkline{ display:flex; align-items:center; gap:8px; font-size:13.5px; margin:2px 0 13px; }
 .checkline input{ width:16px; height:16px; }
-.modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:6px; }
+.modal-actions{ display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; margin-top:6px; }
+.modal-actions .btn{ white-space:nowrap; }
 .radio-group{ display:flex; flex-direction:column; gap:6px; margin-bottom:13px; }
 .radio-opt{ display:flex; align-items:center; gap:8px; font-size:14px; }
 .radio-opt input{ width:16px; height:16px; }
@@ -216,13 +228,17 @@ body{
 
   <nav class="tabs" role="tablist">
     <button class="tab-btn is-active" id="tabQuincenaBtn" role="tab" aria-selected="true">Quincena</button>
-    <button class="tab-btn" id="tabCalendarioBtn" role="tab" aria-selected="false">Calendario</button>
+    <button class="tab-btn" id="tabCalendarioBtn" role="tab" aria-selected="false">Mes</button>
   </nav>
 
   <section class="view" id="viewQuincena">
-    <section class="stats" id="stats">
-      <div class="stat-tile"><span class="stat-label">Cargando</span><span class="stat-value">…</span></div>
+    <section class="summary" id="summary" aria-live="polite">
+      <p class="sum-lead" id="sumLead">Cargando…</p>
+      <p class="sum-amount" id="sumAmount">—</p>
+      <p class="sum-sub"><span id="sumSub"></span><button type="button" class="btn-link" id="editPayrollBtn" disabled>Ajustar nómina</button></p>
     </section>
+
+    <button id="addPaymentBtn" class="btn btn-primary add-main" disabled>+ Agregar pago</button>
 
     <div class="bucket bucket--urgent">
       <div class="bucket-head"><h2>Antes de tu próxima nómina</h2><span class="bucket-total" id="urgentTotal">—</span></div>
@@ -232,11 +248,6 @@ body{
       <div class="bucket-head"><h2>Puede esperar</h2><span class="bucket-total" id="waitingTotal">—</span></div>
       <ul class="payment-list" id="waitingList"><li class="empty-note">Cargando…</li></ul>
     </div>
-
-    <section class="toolbar">
-      <button id="addPaymentBtn" class="btn btn-primary" disabled>+ Agregar pago</button>
-      <button id="editPayrollBtn" class="btn btn-ghost" disabled>Ajustar nómina</button>
-    </section>
   </section>
 
   <section class="view" id="viewCalendario" hidden>
@@ -258,7 +269,7 @@ body{
   </section>
 
   <footer class="foot">
-    <p>Marca un pago como hecho y su próxima fecha se recalcula sola. El pago queda guardado en el Historial.</p>
+    <p>Toca el círculo para marcar un pago como hecho: su próxima fecha se recalcula sola y queda guardado en el Historial. Toca el pago para editarlo o eliminarlo.</p>
   </footer>
 </div>
 
@@ -374,6 +385,7 @@ body{
       </div>
 
       <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="paymentDeleteBtn" hidden>Eliminar</button>
         <button type="button" class="btn btn-ghost" id="paymentCancelBtn">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="paymentSaveBtn">Guardar</button>
       </div>
@@ -474,15 +486,15 @@ body{
     if(rule.recurrenceType==='interval_days') return nextIntervalDays(rule, today);
     return parseISO(rule.anchorDate);
   }
+  // La primera fecha que todavía no se ha pagado, aunque ya haya pasado: así un pago
+  // que se olvidó marcar aparece como vencido (igual que en la vista del mes) en vez
+  // de saltar solo al mes siguiente. Sin pagos marcados, se cuenta desde que se creó.
   function nextDue(payment, today){
-    const raw=rawNext(payment, today);
-    if(payment.lastPaidDate){
-      const lp=parseISO(payment.lastPaidDate);
-      if(cmp(lp, raw) >= 0){
-        return rawNext(payment, addDays(lp,1));
-      }
-    }
-    return raw;
+    if(payment.recurrenceType==='one_time') return parseISO(payment.anchorDate);
+    let from = today;
+    if(payment.lastPaidDate) from = addDays(parseISO(payment.lastPaidDate),1);
+    else if(payment.createdAt) from = parseISO(String(payment.createdAt).slice(0,10));
+    return rawNext(payment, from);
   }
   function nextPayday(payroll, today){
     const anchor=parseISO(payroll.anchorDate);
@@ -506,26 +518,8 @@ body{
     return 'Cada '+k+' meses';
   }
 
-  // ---------- icon picker ----------
-  const ICON_COLORS = ['#3478F6','#1DB954','#E4405F','#FF8A3D','#B454E0','#00B8A9','#F2B705','#5B6EF5'];
-  const KEYWORD_ICONS = [
-    [/renta|alquiler|hipoteca/i,'🏠'],
-    [/internet|wifi|megacable|izzi|totalplay|fibra/i,'📶'],
-    [/telcel|movistar|at&t|unefon|celular|tel[ée]fono/i,'📱'],
-    [/apple/i,'🍎'],
-    [/netflix/i,'🎬'],
-    [/spotify|m[úu]sica/i,'🎵'],
-    [/agua/i,'💧'],
-    [/luz|cfe|iberdrola|electric/i,'💡'],
-    [/\bgas\b/i,'🔥'],
-    [/gym|synergym|gimnasio/i,'🏋️'],
-    [/google/i,'🔷'],
-    [/chatgpt|openai/i,'🤖'],
-    [/invest|ahorro|invers/i,'💼'],
-    [/disney|hbo|max|prime/i,'📺'],
-    [/seguro/i,'🛡️'],
-  ];
-  function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))>>>0; } return h; }
+  // ---------- icons (shared with the other pages, see comun.js) ----------
+  const pickIcon = (name, category) => Comun.elegirIcono(name, category);
   function hexToRgba(hex, alpha){
     const h = hex.replace('#','');
     const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
@@ -569,19 +563,15 @@ body{
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>applyMonthTheme());
   }
   applyMonthTheme(todayObj().m);
-  function pickIcon(name, category){
-    let emoji=null;
-    for(const [re,em] of KEYWORD_ICONS){ if(re.test(name)){ emoji=em; break; } }
-    if(!emoji) emoji = category==='negocio' ? '💼' : category==='suscripcion' ? '⭐' : '💳';
-    const color = ICON_COLORS[hashStr(name)%ICON_COLORS.length];
-    return {emoji, color};
-  }
 
   // ---------- state ----------
   const state = { payments:null, payroll:null, db:null, editingId:null, calView:todayObj(), activeTab:'quincena', formIconDataUri:null };
 
   const els = {
-    stats: document.getElementById('stats'),
+    summary: document.getElementById('summary'),
+    sumLead: document.getElementById('sumLead'),
+    sumAmount: document.getElementById('sumAmount'),
+    sumSub: document.getElementById('sumSub'),
     urgentList: document.getElementById('urgentList'),
     waitingList: document.getElementById('waitingList'),
     urgentTotal: document.getElementById('urgentTotal'),
@@ -644,24 +634,15 @@ body{
     const urgentSum = urgent.reduce((s,p)=>s+Number(p.amount||0),0);
     const waitingSum = waiting.reduce((s,p)=>s+Number(p.amount||0),0);
 
-    els.stats.innerHTML = `
-      <div class="stat-tile is-critical">
-        <span class="stat-label">Antes del ${fmtDate(payday,false)}</span>
-        <span class="stat-value">${money.format(urgentSum)}</span>
-        <span class="stat-sub">${urgent.length} pago${urgent.length===1?'':'s'}</span>
-      </div>
-      <div class="stat-tile">
-        <span class="stat-label">Puede esperar</span>
-        <span class="stat-value">${money.format(waitingSum)}</span>
-        <span class="stat-sub">${waiting.length} pago${waiting.length===1?'':'s'}</span>
-      </div>
-      <div class="stat-tile is-accent">
-        <span class="stat-label">Próxima nómina</span>
-        <span class="stat-value">${fmtDate(payday,false)}</span>
-        <span class="stat-sub">en ${daysToPayday} día${daysToPayday===1?'':'s'}<button type="button" id="payrollInlineBtn">ajustar</button></span>
-      </div>`;
-    const inlineBtn = document.getElementById('payrollInlineBtn');
-    if(inlineBtn) inlineBtn.addEventListener('click', openPayrollModal);
+    const overdue = urgent.filter(p => cmp(p._due, today) < 0).length;
+    const cuando = daysToPayday===0 ? 'hoy' : daysToPayday===1 ? 'mañana' : 'en '+daysToPayday+' días';
+    els.summary.classList.toggle('is-clear', urgent.length===0);
+    els.sumLead.innerHTML = urgent.length
+      ? `Antes de tu nómina del <b>${fmtDate(payday,false)}</b> necesitas`
+      : `No tienes pagos antes de tu nómina del <b>${fmtDate(payday,false)}</b>`;
+    els.sumAmount.textContent = money.format(urgentSum);
+    els.sumSub.textContent = (urgent.length ? urgent.length+' pago'+(urgent.length===1?'':'s') : 'Nada pendiente')
+      + (overdue ? ', '+overdue+' vencido'+(overdue===1?'':'s') : '') + '. Te pagan '+cuando+'.';
 
     els.urgentTotal.textContent = money.format(urgentSum);
     els.waitingTotal.textContent = money.format(waitingSum);
@@ -680,37 +661,32 @@ body{
   }
 
   function miniIconHTML(p, variant){
-    const cls = variant==='solo' ? 'cal-icon-solo' : 'cal-icon-mini';
-    const t = escapeHTML(p.name||'');
-    if(p.iconDataUri) return `<span class="${cls}" style="background:var(--surface-2)" title="${t}"><img src="${p.iconDataUri}" alt=""></span>`;
-    const icon = pickIcon(p.name, p.category);
-    return `<span class="${cls}" style="background:${icon.color}" title="${t}">${icon.emoji}</span>`;
+    return Comun.iconoHTML(p, variant==='solo' ? 'cal-icon-solo' : 'cal-icon-mini', escapeHTML(p.name||''));
   }
 
-  function iconTileHTML(p){
-    if(p.iconDataUri) return `<span class="icon-tile" style="background:var(--surface-2)"><img src="${p.iconDataUri}" alt=""></span>`;
-    const icon = pickIcon(p.name, p.category);
-    return `<span class="icon-tile" style="background:${icon.color}">${icon.emoji}</span>`;
+  function iconTileHTML(p){ return Comun.iconoHTML(p, 'icon-tile'); }
+
+  // Toda la fila abre el pago para editarlo o eliminarlo; el círculo de la izquierda lo marca como pagado.
+  function rowOpenHTML(p, status){
+    return `<button type="button" class="row-open" data-action="edit" data-id="${p.id}" aria-label="Editar ${escapeHTML(p.name)}">
+        ${iconTileHTML(p)}
+        <span class="row-main">
+          <span class="row-name">${escapeHTML(p.name)}</span>
+          <span class="row-cad">${cadenceLabel(p)}</span>
+        </span>
+        <span class="row-right">
+          <span class="row-amount">${money.format(p.amount)}</span>
+          <span class="row-status ${status.cls}">${status.label}</span>
+        </span>
+      </button>`;
   }
 
   function rowHTML(p, today){
     const status = statusForDue(p._due, today);
     const rowClass = status.cls==='critical' ? 'is-overdue' : '';
     return `<li class="payment-row ${rowClass}" data-id="${p.id}">
-      <button class="check" title="Marcar como pagado" data-action="pay" data-id="${p.id}" data-due="${toISO(p._due)}">✓</button>
-      ${iconTileHTML(p)}
-      <div class="row-main">
-        <span class="row-name">${escapeHTML(p.name)}</span>
-        <span class="row-cad">${cadenceLabel(p)}</span>
-      </div>
-      <div class="row-right">
-        <span class="row-amount">${money.format(p.amount)}</span>
-        <span class="row-status ${status.cls}">${status.label}</span>
-      </div>
-      <div class="row-actions">
-        <button class="icon-btn" title="Editar" data-action="edit" data-id="${p.id}">✎</button>
-        <button class="icon-btn" title="Eliminar" data-action="del" data-id="${p.id}">🗑</button>
-      </div>
+      <button type="button" class="check" title="Marcar como pagado" aria-label="Marcar ${escapeHTML(p.name)} como pagado" data-action="pay" data-id="${p.id}" data-due="${toISO(p._due)}"></button>
+      ${rowOpenHTML(p, status)}
     </li>`;
   }
 
@@ -839,17 +815,7 @@ body{
     occ.forEach(o=>{
       total += Number(o.payment.amount||0);
       const status = occurrenceStatus(o.payment, o.date, today);
-      html += `<li class="payment-row" data-id="${o.payment.id}">
-        ${iconTileHTML(o.payment)}
-        <div class="row-main">
-          <span class="row-name">${escapeHTML(o.payment.name)}</span>
-          <span class="row-cad">${cadenceLabel(o.payment)}</span>
-        </div>
-        <div class="row-right">
-          <span class="row-amount">${money.format(o.payment.amount)}</span>
-          <span class="row-status ${status.cls}">${status.label}</span>
-        </div>
-      </li>`;
+      html += `<li class="payment-row" data-id="${o.payment.id}">${rowOpenHTML(o.payment, status)}</li>`;
     });
     els.calList.innerHTML = html;
     els.calListTotal.textContent = money.format(total);
@@ -870,12 +836,11 @@ body{
     if(!btn) return;
     const id = btn.dataset.id;
     const action = btn.dataset.action;
-    if(action==='pay') markPaid(id, btn.dataset.due);
+    if(action==='pay'){ btn.classList.add('is-done'); markPaid(id, btn.dataset.due, btn); }
     else if(action==='edit') openEditModal(id);
-    else if(action==='del') confirmDelete(btn, id);
   });
 
-  function markPaid(id, dueISO){
+  function markPaid(id, dueISO, btn){
     if(!state.db) return;
     // Store the DUE DATE just covered (not today's date) — that's what lets the
     // recurrence engine recognize this cycle as settled whether you pay early,
@@ -889,22 +854,30 @@ body{
         name: p.name, amount: p.amount, category: p.category, date: toISO(todayObj()),
         dueDate: settledThrough, paymentId: id, source: 'calendario',
       }, id + '_' + settledThrough).catch(()=>{});
-    }).catch(()=> showToast('No se pudo guardar. Intenta de nuevo.'));
-  }
-
-  function confirmDelete(btn, id){
-    const row = btn.closest('.payment-row');
-    const name = row.querySelector('.row-name').textContent;
-    row.innerHTML = `<div class="row-confirm"><span>¿Eliminar «${escapeHTML(name)}»?</span>
-      <span><button type="button" class="btn btn-ghost" data-action="cancel-del">Cancelar</button>
-      <button type="button" class="btn btn-primary" data-action="do-del" data-id="${id}">Sí, eliminar</button></span></div>`;
-    row.querySelector('[data-action="cancel-del"]').addEventListener('click', render);
-    row.querySelector('[data-action="do-del"]').addEventListener('click', ()=>{
-      if(!state.db) return;
-      state.db.collection('payments').doc(id).delete().then(()=> showToast('Pago eliminado'))
-        .catch(()=> showToast('No se pudo eliminar.'));
+    }).catch(()=>{
+      if(btn) btn.classList.remove('is-done');
+      showToast('No se pudo guardar. Intenta de nuevo.');
     });
   }
+
+  // Eliminar desde la ficha del pago: el primer toque pide confirmar, el segundo elimina.
+  const deleteBtn = document.getElementById('paymentDeleteBtn');
+  function resetDeleteBtn(){
+    deleteBtn.classList.remove('is-armed');
+    deleteBtn.textContent = 'Eliminar';
+  }
+  deleteBtn.addEventListener('click', ()=>{
+    const id = state.editingId;
+    if(!state.db || !id) return;
+    if(!deleteBtn.classList.contains('is-armed')){
+      deleteBtn.classList.add('is-armed');
+      deleteBtn.textContent = 'Sí, eliminar';
+      return;
+    }
+    state.db.collection('payments').doc(id).delete()
+      .then(()=>{ closePaymentModal(); showToast('Pago eliminado'); })
+      .catch(()=> showToast('No se pudo eliminar.'));
+  });
 
   // ---------- payment modal ----------
   const paymentBackdrop = document.getElementById('paymentModalBackdrop');
@@ -940,6 +913,8 @@ body{
     document.getElementById('f-windowstart').value = 1;
     document.getElementById('f-shared').checked = false;
     resetIconPicker();
+    deleteBtn.hidden = true;
+    resetDeleteBtn();
     syncFormVisibility();
     paymentBackdrop.hidden = false;
     document.getElementById('f-name').focus();
@@ -950,6 +925,8 @@ body{
     if(!p) return;
     state.editingId = id;
     document.getElementById('paymentModalTitle').textContent = 'Editar pago';
+    deleteBtn.hidden = false;
+    resetDeleteBtn();
     document.getElementById('f-name').value = p.name;
     document.getElementById('f-category').value = p.category;
     document.getElementById('f-amount').value = p.amount;
@@ -980,7 +957,9 @@ body{
     }
     syncFormVisibility();
     paymentBackdrop.hidden = false;
-    document.getElementById('f-name').focus();
+    // Sin enfocar un campo: al abrir un pago para verlo, no sale el teclado del teléfono.
+    document.getElementById('paymentModalTitle').setAttribute('tabindex','-1');
+    document.getElementById('paymentModalTitle').focus();
   }
 
   function closePaymentModal(){ paymentBackdrop.hidden = true; }

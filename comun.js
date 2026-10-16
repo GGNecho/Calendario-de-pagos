@@ -93,6 +93,42 @@
     return id ? col.doc(id).set(data) : col.add(data);
   }
 
+  // Icono de cada pago: un emoji según el nombre sobre un color fijo por nombre,
+  // para que el mismo pago se vea igual en todas las páginas.
+  const COLORES_ICONO = ['#3478F6','#1DB954','#E4405F','#FF8A3D','#B454E0','#00B8A9','#F2B705','#5B6EF5'];
+  const ICONOS = [
+    [/renta|alquiler|hipoteca/i,'🏠'],
+    [/internet|wifi|megacable|izzi|totalplay|fibra/i,'📶'],
+    [/telcel|movistar|at&t|unefon|celular|tel[ée]fono/i,'📱'],
+    [/apple/i,'🍎'],
+    [/netflix/i,'🎬'],
+    [/spotify|m[úu]sica/i,'🎵'],
+    [/agua/i,'💧'],
+    [/luz|cfe|iberdrola|electric/i,'💡'],
+    [/\bgas\b/i,'🔥'],
+    [/gym|synergym|gimnasio/i,'🏋️'],
+    [/google/i,'🔷'],
+    [/chatgpt|openai/i,'🤖'],
+    [/invest|ahorro|invers/i,'💼'],
+    [/disney|hbo|max|prime/i,'📺'],
+    [/seguro/i,'🛡️'],
+  ];
+  function hash(t){ let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return h; }
+  function elegirIcono(name, category){
+    name = String(name||'');
+    let emoji = null;
+    for(const [re,em] of ICONOS){ if(re.test(name)){ emoji = em; break; } }
+    if(!emoji) emoji = category==='negocio' ? '💼' : category==='suscripcion' ? '⭐' : '💳';
+    return {emoji, color: COLORES_ICONO[hash(name)%COLORES_ICONO.length]};
+  }
+  // `cls` es la clase de la página que da el tamaño (icon-tile, item-icon…).
+  function iconoHTML(p, cls, title){
+    const t = title ? ` title="${String(title).replace(/"/g,'&quot;')}"` : '';
+    if(p.iconDataUri) return `<span class="${cls}" style="background:var(--surface-2)"${t}><img src="${p.iconDataUri}" alt=""></span>`;
+    const ic = elegirIcono(p.name, p.category);
+    return `<span class="${cls}" style="background:${ic.color}"${t}>${ic.emoji}</span>`;
+  }
+
   const CATEGORIAS = {
     super:'Súper', comida:'Comida fuera', casa:'Casa', transporte:'Transporte', salud:'Salud',
     ocio:'Entretenimiento', personal:'Pagos fijos', suscripcion:'Suscripciones', negocio:'Negocio', otro:'Otro',
@@ -117,5 +153,5 @@
     return /^nemecio/i.test(email) ? '<span class="who a">N</span>' : '<span class="who b">MF</span>';
   }
 
-  window.Comun = { esCompartido, LLAVES_ANTERIORES, guardarEnHistorial, hoyISO, CATEGORIAS, conectar, quien };
+  window.Comun = { esCompartido, LLAVES_ANTERIORES, guardarEnHistorial, hoyISO, CATEGORIAS, conectar, quien, elegirIcono, iconoHTML };
 })();

@@ -14,13 +14,16 @@
 <style>
 .month-nav{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .month-nav .label{ font-weight:700; font-size:16px; }
-.nav-btn{ width:34px; height:34px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); font-size:16px; cursor:pointer; }
+.nav-btn{ width:40px; height:40px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); font-size:16px; cursor:pointer; }
 .total{ font-size:30px; margin-top:12px; }
 .compare{ font-size:12.5px; color:var(--ink-faint); margin-top:2px; }
-.bars{ display:flex; align-items:flex-end; gap:8px; height:110px; margin-top:6px; }
+.bars{ display:flex; align-items:flex-end; gap:8px; height:130px; margin-top:10px; }
 .bar{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; height:100%; cursor:pointer; background:none; border:none; padding:0; font:inherit; color:inherit; }
 .bar-fill{ width:100%; max-width:40px; border-radius:6px 6px 2px 2px; background:color-mix(in srgb, var(--accent) 35%, transparent); min-height:2px; }
 .bar.sel .bar-fill{ background:var(--accent); }
+.bar-fill.is-zero{ background:none; border-top:2px dashed var(--border); border-radius:0; min-height:0; }
+.bar-amt{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:10.5px; color:var(--ink-faint); white-space:nowrap; }
+.bar.sel .bar-amt{ color:var(--ink); font-weight:600; }
 .bar-lbl{ font-size:11px; color:var(--ink-faint); }
 .bar.sel .bar-lbl{ color:var(--ink); font-weight:700; }
 .cat{ display:grid; grid-template-columns:1fr auto; gap:4px 10px; align-items:center; margin-bottom:10px; font-size:13.5px; }
@@ -33,6 +36,7 @@
 .entry-main{ flex:1; min-width:0; }
 .entry-name{ font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .entry-meta{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:2px; }
+.entry .btn-link{ padding:10px 8px; font-size:14px; }
 .head-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
 .head-row h2{ margin:0; }
 </style>
@@ -105,6 +109,8 @@
   function key(y,m){ return y+'-'+String(m+1).padStart(2,'0'); }
   function shift(v, n){ const a=v.y*12+v.m+n; return {y:Math.floor(a/12), m:((a%12)+12)%12}; }
   function totalOf(k){ return entries.filter(e=>String(e.date).startsWith(k)).reduce((s,e)=>s+Number(e.amount||0),0); }
+  // Monto corto para las barras: 13660 → "$13.7k", 850 → "$850".
+  function corto(v){ return v >= 1000 ? '$' + (v/1000).toFixed(v >= 100000 ? 0 : 1).replace(/\.0$/,'') + 'k' : '$' + Math.round(v); }
   const FUENTE = {calendario:'Calendario', nota:'Nota', manual:'Manual'};
 
   $('a-category').innerHTML = Object.entries(Comun.CATEGORIAS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
@@ -127,8 +133,9 @@
     const months = [-5,-4,-3,-2,-1,0].map(n=>shift(view,n));
     const totals = months.map(v=>totalOf(key(v.y,v.m)));
     const max = Math.max(1, ...totals);
-    $('bars').innerHTML = months.map((v,i)=>`<button type="button" class="bar${i===5?' sel':''}" data-y="${v.y}" data-m="${v.m}" title="${MESES[v.m]}: ${money.format(totals[i])}">
-        <span class="bar-fill" style="height:${Math.round(totals[i]/max*85)}%"></span><span class="bar-lbl">${MES_CORTO[v.m]}</span></button>`).join('');
+    $('bars').innerHTML = months.map((v,i)=>`<button type="button" class="bar${i===5?' sel':''}" data-y="${v.y}" data-m="${v.m}" aria-label="${MESES[v.m]}: ${money.format(totals[i])}">
+        <span class="bar-amt">${totals[i] ? corto(totals[i]) : '—'}</span>
+        <span class="bar-fill${totals[i] ? '' : ' is-zero'}" style="height:${Math.round(totals[i]/max*70)}%"></span><span class="bar-lbl">${MES_CORTO[v.m]}</span></button>`).join('');
 
     const byCat = {};
     list.forEach(e=>{ const c = e.category || 'otro'; byCat[c] = (byCat[c]||0) + Number(e.amount||0); });

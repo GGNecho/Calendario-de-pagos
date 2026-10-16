@@ -23,7 +23,7 @@
 
 .summary{ display:flex; flex-direction:column; gap:14px; }
 .summary-top{ display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
-.summary-top .lbl{ font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-weight:600; }
+.summary-top .lbl{ font-size:13.5px; color:var(--ink-soft); font-weight:600; }
 .summary-top .all{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink-soft); }
 .split-bar{ display:flex; height:10px; border-radius:999px; overflow:hidden; background:var(--surface-2); }
 .split-bar .a{ background:var(--person-a); transition:width .2s ease; }
@@ -49,7 +49,8 @@
 .item-cad{ font-size:12px; color:var(--ink-faint); }
 .item-amount{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600; font-size:15px; }
 .split-row{ grid-column:1 / -1; display:flex; align-items:center; gap:12px; margin-top:8px; }
-.split-readout{ display:flex; gap:10px; font-family:var(--font-mono); font-size:12.5px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+/* Ancho fijo para que el control mida lo mismo en todos los renglones. */
+.split-readout{ flex:0 0 auto; width:20.5ch; display:flex; justify-content:space-between; gap:8px; font-family:var(--font-mono); font-size:12.5px; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .split-readout .a{ color:var(--person-a); }
 .split-readout .b{ color:var(--person-b); }
 
@@ -82,8 +83,8 @@ input[type="range"].split:focus-visible{ outline:2px solid var(--accent); outlin
     </div>
     <div class="split-bar" aria-hidden="true"><span class="a" id="barA" style="width:50%"></span><span class="b"></span></div>
     <div class="people-totals">
-      <div class="pt a"><span class="name">Le toca a Nemecio</span><span class="val" id="totalA">—</span><span class="pct" id="pctA"></span></div>
-      <div class="pt b"><span class="name">Le toca a María Fernanda</span><span class="val" id="totalB">—</span><span class="pct" id="pctB"></span></div>
+      <div class="pt a"><span class="name">Nemecio</span><span class="val" id="totalA">—</span><span class="pct" id="pctA"></span></div>
+      <div class="pt b"><span class="name">María Fernanda</span><span class="val" id="totalB">—</span><span class="pct" id="pctB"></span></div>
     </div>
   </section>
 
@@ -102,11 +103,6 @@ input[type="range"].split:focus-visible{ outline:2px solid var(--accent); outlin
   "use strict";
   const money = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN', maximumFractionDigits:0});
   const STORAGE_KEY = 'cuentas-casa-splits-v1';
-  const COLORS = ['#9C5B3C','#3C6E71','#8E44AD','#3478F6','#FF8A3D','#00B8A9','#F2B705','#E4405F'];
-  const ICONOS = [
-    [/renta|alquiler|hipoteca/i,'🏠'], [/internet|wifi|izzi|totalplay|megacable/i,'📶'], [/telcel|movistar|at&t|celular/i,'📱'],
-    [/apple/i,'🍎'], [/agua/i,'💧'], [/luz|cfe/i,'💡'], [/\bgas\b/i,'🔥'], [/google/i,'🔷'], [/netflix|disney|hbo|max|prime/i,'📺'],
-  ];
 
   const firebaseConfig = {
     apiKey: "AIzaSyDLV3ozEUZ8XrybKQIrYUA7PY33GKnsFwY",
@@ -149,19 +145,12 @@ input[type="range"].split:focus-visible{ outline:2px solid var(--accent); outlin
     syncNoteEl.textContent = msg;
     syncNoteEl.style.color = ok ? 'var(--ok)' : 'var(--ink-faint)';
   }
-  function hash(t){ let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return h; }
   function cadencia(p){
     if(p.recurrenceType==='interval_days') return 'Cada '+p.intervalDays+' días';
     const k = p.monthsInterval||1;
     return k===1 ? 'Mensual' : k===2 ? 'Bimestral' : k===3 ? 'Trimestral' : 'Cada '+k+' meses';
   }
-  function iconoHTML(p){
-    if(p.iconDataUri) return `<span class="item-icon"><img src="${p.iconDataUri}" alt=""></span>`;
-    const color = COLORS[hash(p.name)%COLORS.length];
-    let emoji = '💳';
-    for(const [re,em] of ICONOS){ if(re.test(p.name)){ emoji = em; break; } }
-    return `<span class="item-icon" style="background:${color}1a; color:${color}">${emoji}</span>`;
-  }
+  function iconoHTML(p){ return Comun.iconoHTML(p, 'item-icon'); }
 
   function pushSplitsRemote(){
     clearTimeout(pushTimer);
