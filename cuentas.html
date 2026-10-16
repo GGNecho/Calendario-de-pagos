@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="acceso.js"></script>
+<script src="comun.js"></script>
 <style>
 :root{
   --paper:#F6F4EE;
@@ -79,7 +80,9 @@ h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,3
 .list-head h2{ font-family:var(--font-body); font-weight:700; font-size:15px; margin:0; }
 .list-head p{ margin:4px 0 0; font-size:12.5px; color:var(--ink-faint); }
 .item{ padding:14px 18px; border-top:1px solid var(--border); display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
-.item-icon{ width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex:0 0 auto; }
+.item-icon img{ width:100%; height:100%; object-fit:cover; border-radius:12px; display:block; }
+.empty{ padding:18px; color:var(--ink-faint); font-size:13.5px; border-top:1px solid var(--border); }
+.item-icon{ overflow:hidden; width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex:0 0 auto; }
 .item-main{ flex:1 1 160px; min-width:120px; }
 .item-name{ font-weight:600; font-size:14.5px; }
 .item-cad{ font-size:12px; color:var(--ink-faint); }
@@ -124,7 +127,7 @@ h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,3
       <p id="syncNote" style="margin-top:6px;font-weight:600;"></p>
     </div>
     <div id="items"></div>
-    <p class="note">Luz es bimestral (se paga cada 2 meses); los demás son mensuales. Los montos y la lista los actualiza Nemecio cuando cambian.</p>
+    <p class="note">Los montos vienen del Calendario. Para cambiar uno, o para agregar o quitar un gasto de esta lista, edítalo en el Calendario y marca o desmarca "Gasto compartido".</p>
   </section>
 
   <footer class="foot">
@@ -135,29 +138,14 @@ h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,3
 <script>
 (function(){
   "use strict";
-  // Lista de gastos compartidos. Para actualizar montos o agregar/quitar uno,
-  // edita este arreglo directamente (o pídele a Claude que regenere el archivo).
-  const EXPENSES = [
-    {id:"renta",   name:"Renta",           cad:"Mensual",   amount:12800, icon:"🏠", color:"#9C5B3C"},
-    {id:"internet",name:"Internet",        cad:"Mensual",   amount:900,   icon:"📶", color:"#3C6E71"},
-    {id:"apple",   name:"Apple One",       cad:"Mensual",   amount:650,   icon:"🍎", color:"#8E44AD"},
-    {id:"telmar",  name:"Telcel María",    cad:"Mensual",   amount:2100, icon:"📱", color:"#3478F6"},
-    {id:"telnem",  name:"Telcel Nemecio",  cad:"Mensual",   amount:1300, icon:"📱", color:"#FF8A3D"},
-    {id:"agua",    name:"Agua",            cad:"Mensual",   amount:300,  icon:"💧", color:"#00B8A9"},
-    {id:"luz",     name:"Luz (CFE)",       cad:"Bimestral", amount:3000, icon:"💡", color:"#F2B705"},
-    {id:"gas",     name:"Gas",             cad:"Mensual",   amount:300,  icon:"🔥", color:"#E4405F"},
-  ];
-
   const money = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN', maximumFractionDigits:0});
   const STORAGE_KEY = 'cuentas-casa-splits-v1';
+  const COLORS = ['#9C5B3C','#3C6E71','#8E44AD','#3478F6','#FF8A3D','#00B8A9','#F2B705','#E4405F'];
+  const ICONOS = [
+    [/renta|alquiler|hipoteca/i,'🏠'], [/internet|wifi|izzi|totalplay|megacable/i,'📶'], [/telcel|movistar|at&t|celular/i,'📱'],
+    [/apple/i,'🍎'], [/agua/i,'💧'], [/luz|cfe/i,'💡'], [/\bgas\b/i,'🔥'], [/google/i,'🔷'], [/netflix|disney|hbo|max|prime/i,'📺'],
+  ];
 
-  // ---------------------------------------------------------------
-  // SINCRONIZACIÓN ENTRE LOS DOS, vía Firebase Firestore.
-  // Los dos ven y cambian el mismo reparto en tiempo real: lo que
-  // mueve uno, el otro lo ve al instante en su teléfono.
-  // Si por algo no hay internet, se sigue guardando en este
-  // navegador (localStorage) mientras vuelve la conexión.
-  // ---------------------------------------------------------------
   const firebaseConfig = {
     apiKey: "AIzaSyDLV3ozEUZ8XrybKQIrYUA7PY33GKnsFwY",
     authDomain: "calendario-de-pagos-56e44.firebaseapp.com",
@@ -166,59 +154,73 @@ h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,3
     messagingSenderId: "783588307830",
     appId: "1:783588307830:web:8b48c58d61b53cbb304057"
   };
-  let db = null;
-  try{
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.firestore();
-  }catch(e){ db = null; }
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
   function loadSplits(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    }catch(e){ return {}; }
+    try{ const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : {}; }catch(e){ return {}; }
   }
-  function saveSplits(splits){
+  function saveSplits(){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(splits)); }catch(e){ /* ignore */ }
   }
+  // Pasa el reparto guardado con los nombres de antes (renta, luz…) a los ids de los pagos.
+  function migrarLlaves(obj){
+    const out = Object.assign({}, obj);
+    Object.entries(Comun.LLAVES_ANTERIORES).forEach(([viejo, nuevo])=>{
+      if(out[viejo] != null && out[nuevo] == null) out[nuevo] = out[viejo];
+      delete out[viejo];
+    });
+    return out;
+  }
 
-  let splits = loadSplits();
+  let splits = migrarLlaves(loadSplits());
+  let expenses = [];
+  let pushTimer = null;
+  let draggingId = null;
   const itemsEl = document.getElementById('items');
   const totalAEl = document.getElementById('totalA');
   const totalBEl = document.getElementById('totalB');
   const syncNoteEl = document.getElementById('syncNote');
-  let pushTimer = null;
-  let draggingId = null;
 
+  function escapeHTML(t){ return String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function setSyncNote(msg, ok){
-    if(!syncNoteEl) return;
     syncNoteEl.textContent = msg;
-    syncNoteEl.style.color = ok ? '#3F7A55' : '#9A9084';
+    syncNoteEl.style.color = ok ? 'var(--ok)' : 'var(--ink-faint)';
+  }
+  function hash(t){ let h=0; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return h; }
+  function cadencia(p){
+    if(p.recurrenceType==='interval_days') return 'Cada '+p.intervalDays+' días';
+    const k = p.monthsInterval||1;
+    return k===1 ? 'Mensual' : k===2 ? 'Bimestral' : k===3 ? 'Trimestral' : 'Cada '+k+' meses';
+  }
+  function iconoHTML(p){
+    if(p.iconDataUri) return `<span class="item-icon"><img src="${p.iconDataUri}" alt=""></span>`;
+    const color = COLORS[hash(p.name)%COLORS.length];
+    let emoji = '💳';
+    for(const [re,em] of ICONOS){ if(re.test(p.name)){ emoji = em; break; } }
+    return `<span class="item-icon" style="background:${color}1a; color:${color}">${emoji}</span>`;
   }
 
   function pushSplitsRemote(){
-    if(!db) return;
     clearTimeout(pushTimer);
     pushTimer = setTimeout(()=>{
       db.collection('shared').doc('splits').set(splits)
-        .catch(()=>{ setSyncNote('No se pudo sincronizar — se guardó solo en este teléfono.', false); });
+        .catch(()=>{ setSyncNote('No se pudo sincronizar. Se guardó solo en este dispositivo.', false); });
     }, 300);
   }
 
   function pctFor(id){ return splits[id] != null ? splits[id] : 50; }
-
   function readoutHTML(e){
-    const aAmt = e.amount * (pctFor(e.id)/100);
-    const bAmt = e.amount - aAmt;
+    const aAmt = Number(e.amount||0) * (pctFor(e.id)/100);
+    const bAmt = Number(e.amount||0) - aAmt;
     return `<span class="a">N ${money.format(aAmt)}</span><span class="b">MF ${money.format(bAmt)}</span>`;
   }
-
   function renderTotals(){
     let totalA = 0, totalB = 0;
-    EXPENSES.forEach(e=>{
-      const pct = pctFor(e.id);
-      totalA += e.amount * (pct/100);
-      totalB += e.amount * (1 - pct/100);
+    expenses.forEach(e=>{
+      const pct = pctFor(e.id), amt = Number(e.amount||0);
+      totalA += amt * (pct/100);
+      totalB += amt * (1 - pct/100);
     });
     totalAEl.textContent = money.format(totalA);
     totalBEl.textContent = money.format(totalB);
@@ -227,7 +229,7 @@ h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,3
   // Pone cada control y sus montos al día sin volver a dibujar la lista, para
   // no reemplazar el control que alguien está arrastrando.
   function refresh(){
-    EXPENSES.forEach(e=>{
+    expenses.forEach(e=>{
       const input = itemsEl.querySelector(`input[data-id="${e.id}"]`);
       if(input && e.id !== draggingId) input.value = pctFor(e.id);
       const readout = itemsEl.querySelector(`[data-readout="${e.id}"]`);
@@ -236,33 +238,32 @@ h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,3
     renderTotals();
   }
 
-  // La lista se dibuja una sola vez.
+  // Se vuelve a dibujar solo cuando cambia la lista de gastos (no al mover un control).
   function render(){
-    let html = '';
-    EXPENSES.forEach(e=>{
-      const pct = pctFor(e.id);
-      html += `<div class="item">
-        <span class="item-icon" style="background:${e.color}1a; color:${e.color}">${e.icon}</span>
+    if(expenses.length===0){
+      itemsEl.innerHTML = '<div class="empty">Todavía no hay gastos compartidos. En el Calendario, edita un pago y marca "Gasto compartido".</div>';
+      renderTotals();
+      return;
+    }
+    itemsEl.innerHTML = expenses.map(e=>`<div class="item">
+        ${iconoHTML(e)}
         <div class="item-main">
-          <div class="item-name">${e.name}</div>
-          <div class="item-cad">${e.cad}</div>
+          <div class="item-name">${escapeHTML(e.name)}</div>
+          <div class="item-cad">${cadencia(e)}</div>
         </div>
-        <span class="item-amount">${money.format(e.amount)}</span>
+        <span class="item-amount">${money.format(Number(e.amount||0))}</span>
         <div class="split-row">
-          <input type="range" min="0" max="100" step="5" value="${pct}" data-id="${e.id}" aria-label="Porcentaje para Nemecio en ${e.name}">
+          <input type="range" min="0" max="100" step="5" value="${pctFor(e.id)}" data-id="${e.id}" aria-label="Porcentaje para Nemecio en ${escapeHTML(e.name)}">
           <span class="split-readout" data-readout="${e.id}">${readoutHTML(e)}</span>
         </div>
-      </div>`;
-    });
-    itemsEl.innerHTML = html;
+      </div>`).join('');
     renderTotals();
-
     itemsEl.querySelectorAll('input[type="range"]').forEach(input=>{
       const id = input.dataset.id;
       input.addEventListener('input', ()=>{
         draggingId = id;
         splits[id] = Number(input.value);
-        saveSplits(splits);
+        saveSplits();
         pushSplitsRemote();
         refresh();
       });
@@ -270,31 +271,35 @@ h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,3
     });
   }
 
-  render();
-
-  if(db){ requireAccess(startSync); } else {
-    setSyncNote('Guardado solo en este teléfono (sin conexión a la base de datos).', false);
-  }
-
-  function startSync(){
+  function start(){
     setSyncNote('Conectando…', false);
+    db.collection('payments').onSnapshot(qs=>{
+      const lista = qs.docs.map(d=>Object.assign({id:d.id}, d.data())).filter(Comun.esCompartido);
+      lista.sort((a,b)=> Number(b.amount||0) - Number(a.amount||0));
+      const firma = JSON.stringify(lista.map(e=>[e.id, e.name, e.amount, e.monthsInterval, e.iconDataUri ? 1 : 0]));
+      expenses = lista;
+      if(firma !== start._firma){ start._firma = firma; render(); } else refresh();
+    }, ()=> setSyncNote('Sin conexión. Usando lo guardado en este dispositivo.', false));
+
     db.collection('shared').doc('splits').onSnapshot(function(snap){
-      // Ignora el eco de lo que este teléfono acaba de mover y aún no termina de guardarse.
+      // Ignora el eco de lo que este dispositivo acaba de mover y aún no termina de guardarse.
       if(snap.metadata.hasPendingWrites) return;
       if(snap.exists){
-        splits = Object.assign({}, snap.data() || {});
+        splits = migrarLlaves(snap.data() || {});
         if(draggingId){
           const input = itemsEl.querySelector(`input[data-id="${draggingId}"]`);
           if(input) splits[draggingId] = Number(input.value);
         }
-        saveSplits(splits);
+        saveSplits();
         refresh();
       }
       setSyncNote('Sincronizado con María Fernanda en tiempo real.', true);
     }, function(){
-      setSyncNote('Sin conexión — usando lo guardado en este teléfono.', false);
+      setSyncNote('Sin conexión. Usando lo guardado en este dispositivo.', false);
     });
   }
+
+  requireAccess(start);
 })();
 </script>
 </body>

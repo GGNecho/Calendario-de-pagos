@@ -9,6 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="acceso.js"></script>
+<script src="comun.js"></script>
 <style>
 :root{
   --paper:#F2F4EE;
@@ -443,6 +444,11 @@ body{
       <div class="field">
         <label for="f-notes">Notas (opcional)</label>
         <input type="text" id="f-notes" placeholder="Ej. Cuenta a nombre de…">
+      </div>
+
+      <div class="checkline" id="sharedWrap">
+        <input type="checkbox" id="f-shared">
+        <label for="f-shared">Gasto compartido (aparece en Cuentas de la Casa)</label>
       </div>
 
       <div class="modal-actions">
@@ -953,8 +959,14 @@ body{
     // recurrence engine recognize this cycle as settled whether you pay early,
     // right on time, or late, and correctly roll to the next occurrence.
     const settledThrough = dueISO || toISO(todayObj());
+    const p = state.payments.find(x=>x.id===id);
     state.db.collection('payments').doc(id).update({lastPaidDate: settledThrough}).then(()=>{
       showToast('Marcado como pagado');
+      // Una entrada por pago y fecha: si se vuelve a marcar el mismo, no se duplica.
+      if(p) Comun.guardarEnHistorial(state.db, {
+        name: p.name, amount: p.amount, category: p.category, date: toISO(todayObj()),
+        dueDate: settledThrough, paymentId: id, source: 'calendario',
+      }, id + '_' + settledThrough).catch(()=>{});
     }).catch(()=> showToast('No se pudo guardar. Intenta de nuevo.'));
   }
 
@@ -1004,6 +1016,7 @@ body{
     document.getElementById('f-haswindow').checked = false;
     document.getElementById('windowStartWrap').hidden = true;
     document.getElementById('f-windowstart').value = 1;
+    document.getElementById('f-shared').checked = false;
     resetIconPicker();
     syncFormVisibility();
     paymentBackdrop.hidden = false;
@@ -1019,6 +1032,7 @@ body{
     document.getElementById('f-category').value = p.category;
     document.getElementById('f-amount').value = p.amount;
     document.getElementById('f-notes').value = p.notes || '';
+    document.getElementById('f-shared').checked = Comun.esCompartido(p);
     if(p.iconDataUri){ showIconPreviewFromDataUri(p.iconDataUri); state.formIconDataUri = p.iconDataUri; }
     else resetIconPicker();
     if(p.recurrenceType==='one_time'){
@@ -1099,6 +1113,7 @@ body{
   function syncFormVisibility(){
     const repeats = document.getElementById('f-repeat-yes').checked;
     recurringFields.hidden = !repeats;
+    document.getElementById('sharedWrap').hidden = !repeats;
     oneTimeFields.hidden = repeats;
     const freq = document.getElementById('f-freq').value;
     const isCustom = freq === 'custom-days';
@@ -1122,7 +1137,8 @@ body{
     const notes = document.getElementById('f-notes').value.trim();
     if(!name || isNaN(amount)) return;
 
-    let data = { name, category, amount, notes, lastPaidDate: null, iconDataUri: state.formIconDataUri || null };
+    const shared = document.getElementById('f-shared').checked;
+    let data = { name, category, amount, notes, shared, lastPaidDate: null, iconDataUri: state.formIconDataUri || null };
     const repeats = document.getElementById('f-repeat-yes').checked;
     const today = toISO(todayObj());
 

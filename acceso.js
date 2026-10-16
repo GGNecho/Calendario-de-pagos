@@ -26,8 +26,9 @@
   .acceso-form input{ flex:1; min-width:0; font:15px var(--font-body,sans-serif); padding:10px 12px; border-radius:12px;
     border:1px solid var(--border,#E1E5D6); background:var(--surface-2,#F1F3EC); color:var(--ink,#1C2621); }
   .acceso-msg{ margin-top:14px !important; min-height:1em; font-size:13px !important; }
-  .acceso-salir{ position:fixed; top:10px; right:12px; z-index:40; font:500 12px var(--font-body,sans-serif); background:none; border:none;
+  .acceso-salir{ position:fixed; bottom:10px; left:12px; z-index:40; font:500 12px var(--font-body,sans-serif); background:none; border:none;
     color:var(--ink-faint,#8B958E); text-decoration:underline; cursor:pointer; }
+  .menu .acceso-salir{ position:static; padding:7px 4px 7px 8px; }
   .acceso-salir[hidden]{ display:none; }`;
   const style = document.createElement('style');
   style.textContent = css;
@@ -128,6 +129,8 @@
       if(permitido(user)){
         gate.hidden = true;
         salir.hidden = false;
+        const menu = document.querySelector('.menu');
+        if(menu && salir.parentNode !== menu) menu.appendChild(salir);
         if(!started){ started = true; onReady(user); }
         return;
       }

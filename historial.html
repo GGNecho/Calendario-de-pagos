@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Historial</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="estilo.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="acceso.js"></script>
+<script src="comun.js"></script>
+<style>
+.month-nav{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.month-nav .label{ font-weight:700; font-size:16px; }
+.nav-btn{ width:34px; height:34px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); font-size:16px; cursor:pointer; }
+.total{ font-size:30px; margin-top:12px; }
+.compare{ font-size:12.5px; color:var(--ink-faint); margin-top:2px; }
+.bars{ display:flex; align-items:flex-end; gap:8px; height:110px; margin-top:6px; }
+.bar{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; height:100%; cursor:pointer; background:none; border:none; padding:0; font:inherit; color:inherit; }
+.bar-fill{ width:100%; max-width:40px; border-radius:6px 6px 2px 2px; background:color-mix(in srgb, var(--accent) 35%, transparent); min-height:2px; }
+.bar.sel .bar-fill{ background:var(--accent); }
+.bar-lbl{ font-size:11px; color:var(--ink-faint); }
+.bar.sel .bar-lbl{ color:var(--ink); font-weight:700; }
+.cat{ display:grid; grid-template-columns:1fr auto; gap:4px 10px; align-items:center; margin-bottom:10px; font-size:13.5px; }
+.cat-track{ grid-column:1 / -1; height:6px; border-radius:999px; background:var(--surface-2); overflow:hidden; }
+.cat-fill{ height:100%; border-radius:999px; background:var(--accent); }
+.entry{ display:flex; gap:10px; align-items:center; padding:10px 2px; border-top:1px solid var(--border); }
+.entry:first-child{ border-top:none; }
+.entry-day{ flex:0 0 42px; text-align:center; font-size:12px; color:var(--ink-faint); line-height:1.15; }
+.entry-day b{ display:block; font-size:17px; color:var(--ink); }
+.entry-main{ flex:1; min-width:0; }
+.entry-name{ font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.entry-meta{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:2px; }
+.head-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
+.head-row h2{ margin:0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="hero">
+    <h1>Historial</h1>
+    <p>Lo que ya se pagó: los pagos que marcan como hechos en el Calendario y lo que pasan desde Notas.</p>
+  </header>
+
+  <section class="card">
+    <div class="month-nav">
+      <button type="button" class="nav-btn" id="prev" aria-label="Mes anterior">‹</button>
+      <span class="label" id="monthLabel">—</span>
+      <button type="button" class="nav-btn" id="next" aria-label="Mes siguiente">›</button>
+    </div>
+    <div class="total money" id="monthTotal">—</div>
+    <div class="compare" id="monthCompare"></div>
+    <div class="bars" id="bars"></div>
+  </section>
+
+  <section class="card">
+    <h2>Por categoría</h2>
+    <div id="cats"><div class="empty">Cargando…</div></div>
+  </section>
+
+  <section class="card">
+    <div class="head-row">
+      <h2>Gastos del mes</h2>
+      <button type="button" class="btn btn-small" id="addBtn">+ Agregar gasto</button>
+    </div>
+    <div id="entries"><div class="empty">Cargando…</div></div>
+  </section>
+</div>
+
+<div class="modal-backdrop" id="addBackdrop" hidden>
+  <form class="modal" id="addForm">
+    <h2>Agregar gasto</h2>
+    <div class="field"><label for="a-name">Concepto</label><input type="text" id="a-name" required placeholder="Ej. Súper, gasolina, farmacia…"></div>
+    <div class="row">
+      <div class="field"><label for="a-amount">Monto (MXN)</label><input type="number" id="a-amount" min="0" step="0.01" inputmode="decimal" required></div>
+      <div class="field"><label for="a-date">Fecha</label><input type="date" id="a-date" required></div>
+    </div>
+    <div class="field"><label for="a-category">Categoría</label><select id="a-category"></select></div>
+    <div class="modal-actions">
+      <button type="button" class="btn" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(function(){
+  "use strict";
+  const money = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN', maximumFractionDigits:0});
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const MES_CORTO = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const DIAS = ['dom','lun','mar','mié','jue','vie','sáb'];
+  const db = Comun.conectar();
+  const $ = id => document.getElementById(id);
+  let entries = [];
+  const now = new Date();
+  let view = {y: now.getFullYear(), m: now.getMonth()};
+
+  function escapeHTML(t){ return String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true, 2600); }
+  function key(y,m){ return y+'-'+String(m+1).padStart(2,'0'); }
+  function shift(v, n){ const a=v.y*12+v.m+n; return {y:Math.floor(a/12), m:((a%12)+12)%12}; }
+  function totalOf(k){ return entries.filter(e=>String(e.date).startsWith(k)).reduce((s,e)=>s+Number(e.amount||0),0); }
+  const FUENTE = {calendario:'Calendario', nota:'Nota', manual:'Manual'};
+
+  $('a-category').innerHTML = Object.entries(Comun.CATEGORIAS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+
+  function render(){
+    const k = key(view.y, view.m);
+    const list = entries.filter(e=>String(e.date).startsWith(k)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    const total = list.reduce((s,e)=>s+Number(e.amount||0),0);
+    $('monthLabel').textContent = MESES[view.m] + ' ' + view.y;
+    $('monthTotal').textContent = money.format(total);
+    const prev = shift(view,-1), prevTotal = totalOf(key(prev.y, prev.m));
+    if(prevTotal > 0){
+      const diff = total - prevTotal;
+      $('monthCompare').textContent = (diff >= 0 ? money.format(diff)+' más' : money.format(-diff)+' menos') + ' que en ' + MESES[prev.m].toLowerCase();
+    } else {
+      $('monthCompare').textContent = list.length + ' gasto' + (list.length===1?'':'s');
+    }
+
+    // Últimos 6 meses hasta el mes que se está viendo.
+    const months = [-5,-4,-3,-2,-1,0].map(n=>shift(view,n));
+    const totals = months.map(v=>totalOf(key(v.y,v.m)));
+    const max = Math.max(1, ...totals);
+    $('bars').innerHTML = months.map((v,i)=>`<button type="button" class="bar${i===5?' sel':''}" data-y="${v.y}" data-m="${v.m}" title="${MESES[v.m]}: ${money.format(totals[i])}">
+        <span class="bar-fill" style="height:${Math.round(totals[i]/max*85)}%"></span><span class="bar-lbl">${MES_CORTO[v.m]}</span></button>`).join('');
+
+    const byCat = {};
+    list.forEach(e=>{ const c = e.category || 'otro'; byCat[c] = (byCat[c]||0) + Number(e.amount||0); });
+    const cats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+    $('cats').innerHTML = cats.length ? cats.map(([c,v])=>`<div class="cat">
+        <span>${escapeHTML(Comun.CATEGORIAS[c] || c)}</span><span class="money">${money.format(v)}</span>
+        <div class="cat-track"><div class="cat-fill" style="width:${total ? Math.max(2, v/total*100) : 0}%"></div></div>
+      </div>`).join('') : '<div class="empty">Sin gastos este mes.</div>';
+
+    $('entries').innerHTML = list.length ? list.map(e=>{
+      const [y,m,d] = String(e.date).split('-').map(Number);
+      const wd = DIAS[new Date(y, m-1, d).getDay()];
+      return `<div class="entry">
+        <div class="entry-day"><b>${d}</b>${wd}</div>
+        <div class="entry-main">
+          <div class="entry-name">${escapeHTML(e.name||'Sin nombre')}</div>
+          <div class="entry-meta">${Comun.quien(e.by)}<span class="tag">${escapeHTML(Comun.CATEGORIAS[e.category] || 'Otro')}</span><span class="muted">${FUENTE[e.source]||''}</span></div>
+        </div>
+        <span class="money">${money.format(Number(e.amount||0))}</span>
+        <button type="button" class="btn-link" data-del="${e.id}" aria-label="Borrar">✕</button>
+      </div>`;
+    }).join('') : '<div class="empty">Sin gastos este mes. Marca pagos como hechos en el Calendario o pasa notas aquí.</div>';
+  }
+
+  $('prev').addEventListener('click', ()=>{ view = shift(view,-1); render(); });
+  $('next').addEventListener('click', ()=>{ view = shift(view,1); render(); });
+  $('bars').addEventListener('click', e=>{
+    const b = e.target.closest('.bar'); if(!b) return;
+    view = {y:Number(b.dataset.y), m:Number(b.dataset.m)}; render();
+  });
+  $('entries').addEventListener('click', e=>{
+    const b = e.target.closest('[data-del]'); if(!b) return;
+    if(confirm('¿Borrar este gasto del historial?')) db.collection('history').doc(b.dataset.del).delete().catch(()=>toast('No se pudo borrar.'));
+  });
+  $('addBtn').addEventListener('click', ()=>{
+    $('addForm').reset();
+    $('a-date').value = Comun.hoyISO();
+    $('a-category').value = 'super';
+    $('addBackdrop').hidden = false;
+    $('a-name').focus();
+  });
+  document.addEventListener('click', e=>{
+    if(e.target.matches('[data-close]') || e.target === $('addBackdrop')) $('addBackdrop').hidden = true;
+  });
+  $('addForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    Comun.guardarEnHistorial(db, {
+      name: $('a-name').value.trim(), amount: Number($('a-amount').value),
+      date: $('a-date').value, category: $('a-category').value, source: 'manual',
+    }).then(()=>{ $('addBackdrop').hidden = true; toast('Gasto guardado'); })
+      .catch(()=> toast('No se pudo guardar.'));
+  });
+
+  requireAccess(()=>{
+    db.collection('history').onSnapshot(qs=>{
+      entries = qs.docs.map(d=>Object.assign({id:d.id}, d.data()));
+      render();
+    }, ()=> toast('No se pudo conectar con la base de datos.'));
+  });
+  render();
+})();
+</script>
+</body>
+</html>
