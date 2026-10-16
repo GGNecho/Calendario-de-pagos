@@ -4,87 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Calendario de Pagos</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="estilo.css">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="acceso.js"></script>
 <script src="comun.js"></script>
 <style>
-:root{
-  --paper:#F2F4EE;
-  --surface:#FFFFFF;
-  --surface-2:#F1F3EC;
-  --ink:#1C2621;
-  --ink-soft:#5B6660;
-  --ink-faint:#8B958E;
-  --border:#E1E5D6;
-  --accent:#2B4B7E;
-  --accent-ink:#EAF0FB;
-  --brass:#9C6E2E;
-  --brass-ink:#FBF1DF;
-  --ok:#2F7A55;
-  --ok-ink:#E4F3EA;
-  --warn:#B4701A;
-  --warn-ink:#FBEEDC;
-  --critical:#B23A2E;
-  --critical-ink:#FBE7E4;
-  --neutral-ink:#EEF0E8;
-  --card-shadow: 0 1px 2px rgba(28,38,33,0.06), 0 6px 18px rgba(28,38,33,0.06);
-  --bg-image: none;
-  --radius-xl: 22px;
-  --radius-lg: 16px;
-  --radius-sm: 10px;
-  --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-body:'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --paper:#0B100E;
-    --surface:#151F1A;
-    --surface-2:#1C2822;
-    --ink:#ECF1EC;
-    --ink-soft:#9FAFA5;
-    --ink-faint:#67766D;
-    --border:#243029;
-    --accent:#8FB0E8;
-    --accent-ink:#1C2C42;
-    --brass:#E0B673;
-    --brass-ink:#3A2E18;
-    --ok:#62D393;
-    --ok-ink:#143322;
-    --warn:#F0B35C;
-    --warn-ink:#3A2A11;
-    --critical:#F3917F;
-    --critical-ink:#3A1712;
-    --neutral-ink:#202C26;
-    --card-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 10px 26px rgba(0,0,0,0.42);
-    --bg-image: radial-gradient(ellipse 90% 60% at 50% -10%, #17352A 0%, rgba(23,53,42,0) 60%), linear-gradient(180deg, #0D1714 0%, #090D0B 55%, #08100D 100%);
-  }
-}
-:root[data-theme="dark"]{
-  --paper:#0B100E;
-  --surface:#151F1A;
-  --surface-2:#1C2822;
-  --ink:#ECF1EC;
-  --ink-soft:#9FAFA5;
-  --ink-faint:#67766D;
-  --border:#243029;
-  --accent:#8FB0E8;
-  --accent-ink:#1C2C42;
-  --brass:#E0B673;
-  --brass-ink:#3A2E18;
-  --ok:#62D393;
-  --ok-ink:#143322;
-  --warn:#F0B35C;
-  --warn-ink:#3A2A11;
-  --critical:#F3917F;
-  --critical-ink:#3A1712;
-  --neutral-ink:#202C26;
-  --card-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 10px 26px rgba(0,0,0,0.42);
-  --bg-image: radial-gradient(ellipse 90% 60% at 50% -10%, #17352A 0%, rgba(23,53,42,0) 60%), linear-gradient(180deg, #0D1714 0%, #090D0B 55%, #08100D 100%);
-}
 
 *{box-sizing:border-box;}
 body{
@@ -100,7 +27,9 @@ body{
 .page{
   max-width:640px;
   margin:0 auto;
-  padding:28px 18px 72px;
+  padding-block:22px 72px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
   display:flex;
   flex-direction:column;
   gap:20px;
@@ -110,9 +39,11 @@ body{
 .hero{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding-top:4px; }
 .hero-text h1{
   font-family:var(--font-display);
-  font-weight:600;
-  font-size:clamp(24px,6vw,30px);
-  margin:0 0 2px;
+  font-weight:700;
+  font-size:clamp(26px,7vw,32px);
+  letter-spacing:-0.02em;
+  line-height:1.05;
+  margin:0 0 6px;
   text-wrap:balance;
 }
 .hero-text p{ margin:0; color:var(--ink-soft); font-size:13.5px; }
@@ -143,28 +74,21 @@ body{
 .view{ display:flex; flex-direction:column; gap:20px; }
 .view[hidden]{ display:none; }
 
-.stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-@media (max-width:520px){ .stats{ grid-template-columns:1fr; } }
-.stat-tile{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius-xl);
-  padding:15px 16px;
-  box-shadow:var(--card-shadow);
-  display:flex; flex-direction:column; gap:4px;
-}
-.stat-tile.is-critical{ border-color:color-mix(in srgb, var(--critical) 35%, var(--border)); }
-.stat-tile.is-accent{ border-color:color-mix(in srgb, var(--accent) 35%, var(--border)); }
-.stat-label{ font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; }
-.stat-value{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:21px; font-weight:600; }
+/* Resumen de la quincena: una sola tarjeta con tres columnas, también en el teléfono. */
+.stats{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius-xl); box-shadow:var(--card-shadow); overflow:hidden; }
+.stat-tile{ padding:14px 14px 13px; display:flex; flex-direction:column; gap:3px; min-width:0; }
+.stat-tile + .stat-tile{ border-left:1px solid var(--border); }
+.stat-label{ font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
+.stat-value{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:clamp(17px,4.8vw,22px); font-weight:600; letter-spacing:-0.02em; white-space:nowrap; }
 .stat-tile.is-critical .stat-value{ color:var(--critical); }
 .stat-tile.is-accent .stat-value{ color:var(--accent); }
-.stat-sub{ font-size:12.5px; color:var(--ink-faint); }
+.stat-sub{ font-size:12px; color:var(--ink-faint); }
 .stat-sub button{ background:none;border:none;padding:0;margin-left:6px;color:var(--accent);font-size:12.5px;font-family:var(--font-body);text-decoration:underline;cursor:pointer; }
 
 .bucket{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl); box-shadow:var(--card-shadow); overflow:hidden; }
 .bucket-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:16px 18px 10px; }
-.bucket-head h2{ font-family:var(--font-body); font-weight:700; font-size:15px; margin:0; }
+.bucket-head h2{ font-family:var(--font-display); font-weight:700; font-size:16px; margin:0; }
 .bucket--urgent .bucket-head h2{ color:var(--critical); }
 .bucket-total{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600; font-size:14px; color:var(--ink-soft); white-space:nowrap; }
 
@@ -180,7 +104,6 @@ body{
   flex:0 0 auto; width:38px; height:38px; border-radius:12px;
   display:flex; align-items:center; justify-content:center;
   font-size:18px; line-height:1;
-  box-shadow:0 2px 6px rgba(0,0,0,0.18);
   overflow:hidden;
 }
 .icon-tile img{ width:100%; height:100%; object-fit:cover; display:block; }
@@ -260,8 +183,8 @@ body{
 /* modals (shared) */
 .modal-backdrop{ position:fixed; inset:0; background:rgba(8,12,10,0.55); display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; z-index:50; }
 .modal-backdrop[hidden]{ display:none; }
-.modal{ background:var(--surface); border-radius:var(--radius-xl); border:1px solid var(--border); box-shadow:var(--card-shadow); width:100%; max-width:440px; padding:22px 22px 20px; }
-.modal h2{ font-family:var(--font-display); font-size:19px; margin:0 0 14px; font-weight:600; }
+.modal{ background:var(--surface); border-radius:var(--radius-xl); border:1px solid var(--border); box-shadow:var(--modal-shadow); width:100%; max-width:440px; padding:22px 22px 20px; }
+.modal h2{ font-family:var(--font-display); font-size:20px; letter-spacing:-0.01em; margin:0 0 14px; font-weight:700; }
 .field{ display:flex; flex-direction:column; gap:5px; margin-bottom:13px; }
 .field label{ font-size:12.5px; color:var(--ink-soft); font-weight:600; }
 .field input[type="text"], .field input[type="number"], .field input[type="date"], .field select{
@@ -278,8 +201,7 @@ body{
 .radio-opt input{ width:16px; height:16px; }
 .hint{ font-size:12px; color:var(--ink-faint); margin:-4px 0 12px; }
 
-.toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:999px; font-size:13.5px; box-shadow:var(--card-shadow); z-index:60; }
-:root[data-theme="dark"] .toast, :root:not([data-theme="light"]) .toast{ background:var(--surface); color:var(--ink); border:1px solid var(--border); }
+.toast{ position:fixed; bottom:calc(22px + env(safe-area-inset-bottom, 0px)); left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:999px; font-size:13.5px; box-shadow:var(--card-shadow); z-index:60; }
 .toast[hidden]{ display:none; }
 </style>
 </head>
@@ -336,7 +258,7 @@ body{
   </section>
 
   <footer class="foot">
-    <p>Marca un pago como hecho y su próxima fecha se recalcula sola. Claude te avisa aquí antes de que se te pase alguno.</p>
+    <p>Marca un pago como hecho y su próxima fecha se recalcula sola. El pago queda guardado en el Historial.</p>
   </footer>
 </div>
 

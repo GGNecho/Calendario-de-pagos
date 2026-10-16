@@ -4,135 +4,97 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cuentas de la Casa</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="estilo.css">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="acceso.js"></script>
 <script src="comun.js"></script>
 <style>
-:root{
-  --paper:#F6F4EE;
-  --surface:#FFFFFF;
-  --surface-2:#F1EEE4;
-  --ink:#271F1A;
-  --ink-soft:#6B6055;
-  --ink-faint:#9A9084;
-  --border:#E7E0D2;
-  --accent-a:#9C5B3C;   /* Nemecio's color */
-  --accent-a-ink:#FBEFE7;
-  --accent-b:#3C6E71;   /* María Fernanda's color */
-  --accent-b-ink:#E7F2F1;
-  --ok:#3F7A55;
-  --shadow: 0 1px 2px rgba(39,31,26,0.06), 0 8px 22px rgba(39,31,26,0.07);
-  --radius-xl:22px;
-  --radius-lg:16px;
-  --radius-sm:10px;
-  --font-display:'Fraunces', Georgia, serif;
-  --font-body:'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono:'IBM Plex Mono', ui-monospace, Menlo, monospace;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --paper:#191511;
-    --surface:#231D18;
-    --surface-2:#2A231D;
-    --ink:#F1EAE2;
-    --ink-soft:#B6AA9C;
-    --ink-faint:#80756A;
-    --border:#39302A;
-    --accent-a:#E4A17D;
-    --accent-a-ink:#3A2316;
-    --accent-b:#7FC2C4;
-    --accent-b-ink:#16302F;
-    --ok:#6FCB92;
-    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 26px rgba(0,0,0,0.38);
-  }
-}
-:root[data-theme="dark"]{
-  --paper:#191511; --surface:#231D18; --surface-2:#2A231D; --ink:#F1EAE2; --ink-soft:#B6AA9C; --ink-faint:#80756A;
-  --border:#39302A; --accent-a:#E4A17D; --accent-a-ink:#3A2316; --accent-b:#7FC2C4; --accent-b-ink:#16302F; --ok:#6FCB92;
-  --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 26px rgba(0,0,0,0.38);
-}
-*{box-sizing:border-box;}
-body{ margin:0; background:var(--paper); color:var(--ink); font-family:var(--font-body); }
-.page{ max-width:620px; margin:0 auto; padding:36px 18px 64px; display:flex; flex-direction:column; gap:22px; }
-h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,34px); margin:0 0 4px; text-wrap:balance; }
-.hero p{ margin:0; color:var(--ink-soft); font-size:14.5px; }
-.people{ display:flex; gap:10px; margin-top:12px; }
-.person-chip{ display:flex; align-items:center; gap:7px; padding:6px 12px; border-radius:999px; font-size:13px; font-weight:600; }
-.person-chip.a{ background:var(--accent-a-ink); color:var(--accent-a); }
-.person-chip.b{ background:var(--accent-b-ink); color:var(--accent-b); }
-.dot{ width:9px; height:9px; border-radius:50%; }
-.dot.a{ background:var(--accent-a); }
-.dot.b{ background:var(--accent-b); }
+.hero p{ max-width:46ch; }
+.people{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+.person-chip{ display:inline-flex; align-items:center; gap:7px; padding:5px 11px; border-radius:999px; font-size:13px; font-weight:600; }
+.person-chip.a{ background:var(--person-a-ink); color:var(--person-a); }
+.person-chip.b{ background:var(--person-b-ink); color:var(--person-b); }
+.dot{ width:8px; height:8px; border-radius:50%; }
+.dot.a{ background:var(--person-a); }
+.dot.b{ background:var(--person-b); }
 
-.summary{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-@media (max-width:420px){ .summary{ grid-template-columns:1fr; } }
-.sum-tile{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl); padding:16px 18px; box-shadow:var(--shadow); }
-.sum-tile .lbl{ font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); }
-.sum-tile .val{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:24px; font-weight:600; margin-top:3px; }
-.sum-tile.a .val{ color:var(--accent-a); }
-.sum-tile.b .val{ color:var(--accent-b); }
+.summary{ display:flex; flex-direction:column; gap:14px; }
+.summary-top{ display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+.summary-top .lbl{ font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); font-weight:600; }
+.summary-top .all{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink-soft); }
+.split-bar{ display:flex; height:10px; border-radius:999px; overflow:hidden; background:var(--surface-2); }
+.split-bar .a{ background:var(--person-a); transition:width .2s ease; }
+.split-bar .b{ background:var(--person-b); flex:1; }
+.people-totals{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.pt{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.pt.b{ text-align:right; }
+.pt .name{ font-size:12.5px; font-weight:600; }
+.pt.a .name{ color:var(--person-a); }
+.pt.b .name{ color:var(--person-b); }
+.pt .val{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:clamp(22px,6.5vw,28px); font-weight:600; letter-spacing:-0.02em; }
+.pt .pct{ font-size:12px; color:var(--ink-faint); }
 
-.list{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-xl); box-shadow:var(--shadow); overflow:hidden; }
-.list-head{ padding:16px 18px 10px; }
-.list-head h2{ font-family:var(--font-body); font-weight:700; font-size:15px; margin:0; }
-.list-head p{ margin:4px 0 0; font-size:12.5px; color:var(--ink-faint); }
-.item{ padding:14px 18px; border-top:1px solid var(--border); display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
-.item-icon img{ width:100%; height:100%; object-fit:cover; border-radius:12px; display:block; }
-.empty{ padding:18px; color:var(--ink-faint); font-size:13.5px; border-top:1px solid var(--border); }
-.item-icon{ overflow:hidden; width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex:0 0 auto; }
-.item-main{ flex:1 1 160px; min-width:120px; }
-.item-name{ font-weight:600; font-size:14.5px; }
+.list-head{ display:flex; flex-direction:column; gap:4px; margin-bottom:4px; }
+.list-head h2{ margin:0; }
+.list-head p{ margin:0; font-size:12.5px; color:var(--ink-faint); }
+#syncNote{ font-weight:600; }
+.item{ padding:14px 0; border-top:1px solid var(--border); display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:4px 12px; }
+.item-icon{ width:36px; height:36px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:17px; overflow:hidden; }
+.item-icon img{ width:100%; height:100%; object-fit:cover; display:block; }
+.item-main{ min-width:0; }
+.item-name{ font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .item-cad{ font-size:12px; color:var(--ink-faint); }
-.item-amount{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600; font-size:15px; flex:0 0 auto; }
-.split-row{ width:100%; display:flex; align-items:center; gap:10px; margin-top:6px; }
-.split-row input[type="range"]{ flex:1; accent-color:var(--accent-a); }
+.item-amount{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-weight:600; font-size:15px; }
+.split-row{ grid-column:1 / -1; display:flex; align-items:center; gap:12px; margin-top:8px; }
 .split-readout{ display:flex; gap:10px; font-family:var(--font-mono); font-size:12.5px; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.split-readout .a{ color:var(--accent-a); }
-.split-readout .b{ color:var(--accent-b); }
+.split-readout .a{ color:var(--person-a); }
+.split-readout .b{ color:var(--person-b); }
 
-.note{ font-size:12.5px; color:var(--ink-faint); padding:0 18px 16px; }
-.foot{ text-align:center; color:var(--ink-faint); font-size:12px; padding-top:6px; }
-.foot p{ margin:4px 0; }
+/* Control de reparto: la parte de Nemecio a la izquierda, la de María Fernanda a la derecha. */
+input[type="range"].split{ --p:50%; flex:1; min-width:0; height:22px; margin:0; background:transparent; -webkit-appearance:none; appearance:none; cursor:pointer; }
+input[type="range"].split::-webkit-slider-runnable-track{ height:6px; border-radius:999px; background:linear-gradient(to right, var(--person-a) var(--p), var(--person-b) var(--p)); }
+input[type="range"].split::-moz-range-track{ height:6px; border-radius:999px; background:linear-gradient(to right, var(--person-a) var(--p), var(--person-b) var(--p)); }
+input[type="range"].split::-webkit-slider-thumb{ -webkit-appearance:none; width:22px; height:22px; margin-top:-8px; border-radius:50%; background:var(--surface); border:2px solid var(--ink); box-shadow:var(--card-shadow); }
+input[type="range"].split::-moz-range-thumb{ width:18px; height:18px; border-radius:50%; background:var(--surface); border:2px solid var(--ink); }
+input[type="range"].split:focus-visible{ outline:2px solid var(--accent); outline-offset:4px; border-radius:999px; }
+
+.note{ font-size:12.5px; color:var(--ink-faint); margin:10px 0 0; padding-top:12px; border-top:1px solid var(--border); }
 </style>
 </head>
 <body>
 <div class="page">
   <header class="hero">
     <h1>Cuentas de la Casa</h1>
-    <p>Gastos que se dividen entre los dos — ajusta el reparto de cada uno con el control deslizante.</p>
+    <p>Los gastos que se dividen entre los dos. Mueve el control de cada uno para cambiar cuánto le toca a cada quien.</p>
     <div class="people">
       <span class="person-chip a"><span class="dot a"></span>Nemecio</span>
       <span class="person-chip b"><span class="dot b"></span>María Fernanda</span>
     </div>
   </header>
 
-  <section class="summary">
-    <div class="sum-tile a">
-      <div class="lbl">Le toca a Nemecio</div>
-      <div class="val" id="totalA">—</div>
+  <section class="card summary" aria-label="Resumen del reparto">
+    <div class="summary-top">
+      <span class="lbl">Total compartido</span>
+      <span class="all" id="totalAll">—</span>
     </div>
-    <div class="sum-tile b">
-      <div class="lbl">Le toca a María Fernanda</div>
-      <div class="val" id="totalB">—</div>
+    <div class="split-bar" aria-hidden="true"><span class="a" id="barA" style="width:50%"></span><span class="b"></span></div>
+    <div class="people-totals">
+      <div class="pt a"><span class="name">Le toca a Nemecio</span><span class="val" id="totalA">—</span><span class="pct" id="pctA"></span></div>
+      <div class="pt b"><span class="name">Le toca a María Fernanda</span><span class="val" id="totalB">—</span><span class="pct" id="pctB"></span></div>
     </div>
   </section>
 
-  <section class="list">
+  <section class="card">
     <div class="list-head">
       <h2>Gastos compartidos</h2>
-      <p>Arrastra el control para cambiar cuánto le toca a cada quien.</p>
-      <p id="syncNote" style="margin-top:6px;font-weight:600;"></p>
+      <p id="syncNote"></p>
     </div>
-    <div id="items"></div>
+    <div id="items"><div class="empty">Cargando…</div></div>
     <p class="note">Los montos vienen del Calendario. Para cambiar uno, o para agregar o quitar un gasto de esta lista, edítalo en el Calendario y marca o desmarca "Gasto compartido".</p>
   </section>
-
-  <footer class="foot">
-    <p>Cuentas de la Casa · actualizado 16 oct 2026</p>
-  </footer>
 </div>
 
 <script>
@@ -224,6 +186,12 @@ h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,3
     });
     totalAEl.textContent = money.format(totalA);
     totalBEl.textContent = money.format(totalB);
+    const all = totalA + totalB;
+    const pa = all ? Math.round(totalA/all*100) : 50;
+    document.getElementById('totalAll').textContent = money.format(all);
+    document.getElementById('barA').style.width = pa + '%';
+    document.getElementById('pctA').textContent = pa + '% del total';
+    document.getElementById('pctB').textContent = (100-pa) + '% del total';
   }
 
   // Pone cada control y sus montos al día sin volver a dibujar la lista, para
@@ -232,6 +200,7 @@ h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,3
     expenses.forEach(e=>{
       const input = itemsEl.querySelector(`input[data-id="${e.id}"]`);
       if(input && e.id !== draggingId) input.value = pctFor(e.id);
+      if(input) input.style.setProperty('--p', pctFor(e.id) + '%');
       const readout = itemsEl.querySelector(`[data-readout="${e.id}"]`);
       if(readout) readout.innerHTML = readoutHTML(e);
     });
@@ -253,7 +222,7 @@ h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(26px,6vw,3
         </div>
         <span class="item-amount">${money.format(Number(e.amount||0))}</span>
         <div class="split-row">
-          <input type="range" min="0" max="100" step="5" value="${pctFor(e.id)}" data-id="${e.id}" aria-label="Porcentaje para Nemecio en ${escapeHTML(e.name)}">
+          <input type="range" class="split" min="0" max="100" step="5" value="${pctFor(e.id)}" style="--p:${pctFor(e.id)}%" data-id="${e.id}" aria-label="Porcentaje para Nemecio en ${escapeHTML(e.name)}">
           <span class="split-readout" data-readout="${e.id}">${readoutHTML(e)}</span>
         </div>
       </div>`).join('');

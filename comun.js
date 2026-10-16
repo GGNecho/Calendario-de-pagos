@@ -3,6 +3,32 @@
 (function(){
   "use strict";
 
+  const TEMAS_DEL_MES = [
+    {emoji:'❄️', name:'Año Nuevo',        light:{accent:'#2B5F8A',ink:'#EAF4FB'}, dark:{accent:'#8FCBEA',ink:'#163044'}},
+    {emoji:'💗', name:'San Valentín',      light:{accent:'#9C2F5C',ink:'#FBE7F0'}, dark:{accent:'#F0A8C4',ink:'#45182B'}},
+    {emoji:'🌱', name:'Primavera',         light:{accent:'#2F7A4E',ink:'#E6F6EC'}, dark:{accent:'#8FE0AE',ink:'#163322'}},
+    {emoji:'🌸', name:'Flores',            light:{accent:'#7A4FA6',ink:'#F3EAFB'}, dark:{accent:'#CBA8F0',ink:'#2E1C42'}},
+    {emoji:'💐', name:'Día de las Madres', light:{accent:'#B23A6B',ink:'#FBE7EF'}, dark:{accent:'#F0A0C0',ink:'#3A1626'}},
+    {emoji:'☀️', name:'Verano',            light:{accent:'#B4701A',ink:'#FBEEDC'}, dark:{accent:'#F0C878',ink:'#3A2A11'}},
+    {emoji:'🌊', name:'Vacaciones',        light:{accent:'#1A7A8A',ink:'#E2F6F8'}, dark:{accent:'#7FE0EE',ink:'#0F3338'}},
+    {emoji:'🌻', name:'Girasol',           light:{accent:'#B4820E',ink:'#FBF3DC'}, dark:{accent:'#F0D878',ink:'#3A2E0D'}},
+    {emoji:'🇲🇽', name:'Mes Patrio',        light:{accent:'#2E7D4F',ink:'#EAF7EE'}, dark:{accent:'#8FE0AE',ink:'#163322'}},
+    {emoji:'🎃', name:'Halloween',         light:{accent:'#B4530E',ink:'#FBE9DC'}, dark:{accent:'#F0A868',ink:'#3A200D'}},
+    {emoji:'🎇', name:'Día de Muertos',    light:{accent:'#8A2F6E',ink:'#F8E6F2'}, dark:{accent:'#E0A0CC',ink:'#38162C'}},
+    {emoji:'🎄', name:'Navidad',           light:{accent:'#A6271F',ink:'#FBE4E1'}, dark:{accent:'#F0978C',ink:'#3A130F'}},
+  ];
+  // El color de acento cambia con el mes, igual que en el Calendario.
+  function aplicarTemaDelMes(){
+    const tema = TEMAS_DEL_MES[new Date().getMonth()];
+    const explicito = document.documentElement.getAttribute('data-theme');
+    const oscuro = explicito ? explicito === 'dark' : (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    const c = oscuro ? tema.dark : tema.light;
+    document.documentElement.style.setProperty('--accent', c.accent);
+    document.documentElement.style.setProperty('--accent-ink', c.ink);
+  }
+  aplicarTemaDelMes();
+  if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', aplicarTemaDelMes);
+
   const PAGINAS = [
     {href:'index.html',    label:'Calendario'},
     {href:'cuentas.html',  label:'Cuentas'},
