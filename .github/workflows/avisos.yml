@@ -1,0 +1,30 @@
+name: Avisos diarios
+
+on:
+  schedule:
+    - cron: '0 14 * * *'   # 8:00 en Ciudad Madero (UTC-6)
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: 'prueba = manda un aviso de prueba; normal = solo si vence algo'
+        default: 'prueba'
+        type: choice
+        options: [prueba, normal]
+
+jobs:
+  avisos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Probar las reglas del aviso
+        run: node --test scripts/avisos.test.mjs
+      - run: npm install --prefix scripts --no-audit --no-fund
+      - name: Mandar el aviso
+        run: node scripts/avisos.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          MODO: ${{ inputs.modo || 'normal' }}
