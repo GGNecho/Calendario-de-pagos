@@ -126,7 +126,8 @@ body .page.ancho{ max-width:1600px; }
 .pz-pie{ font:16px var(--mano); margin:12px 0 0; color:#4b5d8f; }
 .pz-pie b{ color:var(--plumon-verde); }
 .pz-reparto{ margin-top:14px; padding-top:10px; border-top:2px solid rgba(31,63,143,.18); text-align:center; font-size:16px; color:#4b5d8f; }
-.pz-reparto .medidor{ margin-top:4px; color:var(--plumon); }
+.pz-reparto .medidor{ margin-top:4px; }
+.pz-reparto .medidor svg{ color:var(--plumon); }
 .pz-pie a{ color:var(--plumon); }
 .pagar{ flex:0 0 auto; width:40px; height:40px; margin:-8px -6px -8px -10px; border:none; background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; border-radius:999px; }
 .pagar::before{ content:''; width:22px; height:22px; border-radius:50%; border:2.5px solid var(--plumon); box-sizing:border-box;
@@ -139,9 +140,15 @@ body .page.ancho{ max-width:1600px; }
 @media (min-width:960px){
   body .page.ancho{ padding-left:28px; padding-right:28px; }
   .marco{ grid-template-columns:minmax(0,1fr) 340px; padding:18px; }
-  .corcho{ grid-template-columns:minmax(0,1fr) 300px; padding:20px; min-height:calc(100vh - 230px); }
+  .corcho{ padding:20px; min-height:calc(100vh - 230px); }
+  .lado{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.3fr); align-items:start; }
   .notas.libres{ display:block; position:relative; }
   .notas.libres .nota{ position:absolute; width:190px; touch-action:none; cursor:grab; }
+}
+/* Pantallas anchas: la libreta y los tickets pasan a un lado de las notas. */
+@media (min-width:1280px){
+  .corcho{ grid-template-columns:minmax(0,1fr) 300px; }
+  .lado{ display:flex; }
 }
 @media (prefers-reduced-motion: reduce){ .nota, .pegar{ transition:none; } }
 </style>
