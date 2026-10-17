@@ -1,0 +1,9 @@
+{
+  "name": "avisos-calendario",
+  "private": true,
+  "type": "module",
+  "description": "Avisos diarios del Calendario de Pagos (lo corre GitHub Actions)",
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

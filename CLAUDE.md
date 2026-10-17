@@ -27,6 +27,8 @@ Sin build ni dependencias locales: HTML, CSS y JavaScript sueltos. Firebase se c
 
 Colecciones de Firestore: `payments`, `config/payroll`, `shared/splits`, `notes`, `history`, `tickets` (foto del recibo; mismo id que su entrada de `history`, que lleva `ticket: true`) , `shopping` (lista del súper), `documents` y `docfotos`, y `config/budgets` (presupuesto por categoría). `themes` ya no se usa (eran imágenes del mes que se quitaron). Las fotos (tickets, documentos) van en Firestore, nunca en el repositorio: el repositorio es público.
 
+Avisos diarios: `.github/workflows/avisos.yml` corre `scripts/avisos.mjs` a las 8:00 (hora de Madero) con el secreto `FIREBASE_SERVICE_ACCOUNT` y manda una notificación por Firebase Cloud Messaging a los teléfonos de `pushTokens` (se registran con "Activar avisos" en el Tablero). Lo que decide el aviso tiene pruebas en `scripts/avisos.test.mjs`; las fechas vienen de `fechas.js`, igual que en las páginas.
+
 La app se puede instalar en el teléfono (`manifest.webmanifest`, `sw.js`, `icons/`). Si agregas una página, súmala a la lista `ARCHIVOS` de `sw.js` para que abra sin señal.
 
 ## Reglas que no se deben romper

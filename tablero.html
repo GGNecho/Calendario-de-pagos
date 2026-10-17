@@ -14,6 +14,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="acceso.js"></script>
+<script src="fechas.js"></script>
 <script src="comun.js"></script>
 <style>
 /* El tablero de los dos: un corcho con marco de madera donde se pegan notas, la
@@ -29,6 +30,7 @@
 
 body .page.ancho{ max-width:1600px; }
 .hero p{ max-width:60ch; }
+.avisos-btn{ margin-top:10px; }
 
 /* Marco de madera con el corcho y el pizarrón adentro. */
 .marco{ display:grid; gap:14px; padding:10px; border-radius:16px;
@@ -145,6 +147,7 @@ body .page.ancho{ max-width:1600px; }
   <header class="hero">
     <h1>Tablero</h1>
     <p>Lo de los dos en un solo lugar: péguenle notas, citas y cumpleaños, apunten el súper y vean qué falta pagar.</p>
+    <button type="button" class="btn btn-small avisos-btn" id="avisosBtn">🔔 Activar avisos</button>
   </header>
 
   <section class="marco">
@@ -547,7 +550,22 @@ body .page.ancho{ max-width:1600px; }
     if(e.target.matches('[data-close]') || e.target.classList.contains('modal-backdrop')){ $('notaBackdrop').hidden = true; $('gastoBackdrop').hidden = true; $('calBackdrop').hidden = true; }
   });
 
+  // Avisos en el teléfono: cada mañana llega una notificación con lo que vence (ver scripts/avisos.mjs).
+  const MOTIVO = {
+    'sin-llave': 'Los avisos todavía no están configurados.',
+    'instalar': 'En iPhone primero instala la app: en Safari toca Compartir y luego "Agregar a pantalla de inicio". Ábrela desde ahí y vuelve a tocar aquí.',
+    'no-soportado': 'Este navegador no puede recibir avisos. Prueba con Chrome, o en iPhone con la app instalada desde Safari.',
+    'sin-permiso': 'No diste permiso para los avisos. Puedes activarlo en los ajustes de notificaciones del teléfono.',
+  };
+  function marcarAvisos(){ $('avisosBtn').textContent = '🔔 Avisos activados'; $('avisosBtn').disabled = true; }
+  $('avisosBtn').addEventListener('click', ()=>{
+    Comun.activarAvisos(true).then(()=>{ marcarAvisos(); Comun.aviso('Listo: cada mañana les llega un aviso con lo que vence.'); })
+      .catch(e=> Comun.aviso(MOTIVO[e && e.message] || 'No se pudieron activar los avisos. Intenta de nuevo.'));
+  });
+
   requireAccess(()=>{
+    // Si ya tenía permiso, se renueva su registro en silencio (el teléfono a veces lo cambia).
+    if(Comun.avisosActivos()) Comun.activarAvisos(false).then(ok=>{ if(ok) marcarAvisos(); }).catch(()=>{});
     const fallo = ()=> Comun.aviso('No se pudo conectar con la base de datos.');
     const lista = qs => qs.docs.map(d=>Object.assign({id:d.id}, d.data()));
     db.collection('notes').onSnapshot(qs=>{ st.notes = lista(qs).sort((a,b)=> String(a.createdAt).localeCompare(String(b.createdAt))); renderNotas(); }, fallo);

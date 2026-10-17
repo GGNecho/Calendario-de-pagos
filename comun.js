@@ -309,77 +309,9 @@
     return `<span class="${cls}" style="background:${ic.color}"${t}>${ic.emoji}</span>`;
   }
 
-  // ---------- Fechas de los pagos (las usan el Calendario y el Tablero) ----------
-  // Fechas como {y, m, d} con m de 0 a 11.
-  function parseISO(s){ const p = s.split('-').map(Number); return {y:p[0], m:p[1]-1, d:p[2]}; }
-  function toISO(o){ return String(o.y).padStart(4,'0')+'-'+String(o.m+1).padStart(2,'0')+'-'+String(o.d).padStart(2,'0'); }
-  function toUTCms(o){ return Date.UTC(o.y, o.m, o.d); }
-  function cmp(a, b){ return toUTCms(a) - toUTCms(b); }
-  function daysInMonth(y, m){ return new Date(Date.UTC(y, m+1, 0)).getUTCDate(); }
-  function addDays(o, n){ const dt = new Date(toUTCms(o) + n*86400000); return {y:dt.getUTCFullYear(), m:dt.getUTCMonth(), d:dt.getUTCDate()}; }
-  function todayObj(){ const now = new Date(); return {y:now.getFullYear(), m:now.getMonth(), d:now.getDate()}; }
-  function monthAbs(o){ return o.y*12 + o.m; }
-  function fromMonthAbs(abs){ return {y:Math.floor(abs/12), m:((abs%12)+12)%12}; }
-  function occurrenceAtMonth(abs, day, lastDay){
-    const {y, m} = fromMonthAbs(abs);
-    const dim = daysInMonth(y, m);
-    return {y, m, d: lastDay ? dim : Math.min(day||1, dim)};
-  }
-  function diffDays(a, b){ return Math.round((toUTCms(a) - toUTCms(b)) / 86400000); }
-  function weekdayMon(o){ return (new Date(Date.UTC(o.y, o.m, o.d)).getUTCDay() + 6) % 7; } // 0=lunes
-
-  function nextMonthly(rule, today){
-    const k = rule.monthsInterval || 1;
-    const anchorAbs = monthAbs(parseISO(rule.anchorDate));
-    let candAbs = anchorAbs + Math.max(0, Math.ceil((monthAbs(today) - anchorAbs) / k)) * k;
-    let cand = occurrenceAtMonth(candAbs, rule.day, rule.lastDayOfMonth);
-    for(let guard = 0; cmp(cand, today) < 0 && guard < 60; guard++){ candAbs += k; cand = occurrenceAtMonth(candAbs, rule.day, rule.lastDayOfMonth); }
-    return cand;
-  }
-  function nextIntervalDays(rule, today){
-    const anchor = parseISO(rule.anchorDate);
-    return addDays(anchor, Math.max(0, Math.ceil(diffDays(today, anchor) / rule.intervalDays)) * rule.intervalDays);
-  }
-  function rawNext(rule, today){
-    if(rule.recurrenceType === 'monthly') return nextMonthly(rule, today);
-    if(rule.recurrenceType === 'interval_days') return nextIntervalDays(rule, today);
-    return parseISO(rule.anchorDate);
-  }
-  // La primera fecha que todavía no se ha pagado, aunque ya haya pasado: así un pago
-  // que se olvidó marcar aparece como vencido en vez de saltar solo al mes siguiente.
-  // Sin pagos marcados, se cuenta desde que se creó.
-  function nextDue(payment, today){
-    if(payment.recurrenceType === 'one_time') return parseISO(payment.anchorDate);
-    let from = today;
-    if(payment.lastPaidDate) from = addDays(parseISO(payment.lastPaidDate), 1);
-    else if(payment.createdAt) from = parseISO(String(payment.createdAt).slice(0,10));
-    return rawNext(payment, from);
-  }
-  // La fecha que tocaba antes de `date` (null si no hay), para desmarcar un pago.
-  function prevOccurrence(p, date){
-    if(p.recurrenceType === 'monthly'){
-      const abs = monthAbs(date) - (p.monthsInterval || 1);
-      return abs < monthAbs(parseISO(p.anchorDate)) ? null : occurrenceAtMonth(abs, p.day, p.lastDayOfMonth);
-    }
-    if(p.recurrenceType === 'interval_days'){
-      const d = addDays(date, -p.intervalDays);
-      return cmp(d, parseISO(p.anchorDate)) < 0 ? null : d;
-    }
-    return null;
-  }
-  function nextPayday(payroll, today){
-    const anchor = parseISO(payroll.anchorDate), n = payroll.intervalDays || 14;
-    return addDays(anchor, Math.max(0, Math.floor(diffDays(today, anchor) / n) + 1) * n);
-  }
-  function statusForDue(dueDate, today){
-    const dd = diffDays(dueDate, today);
-    if(dd < 0) return {label:'Venció hace '+(-dd)+' día'+(-dd===1?'':'s'), cls:'critical'};
-    if(dd === 0) return {label:'Hoy', cls:'critical'};
-    if(dd === 1) return {label:'Mañana', cls:'warn'};
-    if(dd <= 3) return {label:'en '+dd+' días', cls:'warn'};
-    return {label:'en '+dd+' días', cls:'neutral'};
-  }
-
+  // Las fechas de los pagos viven en fechas.js (también las usa el programa de avisos).
+  const {parseISO, toISO, cmp, daysInMonth, addDays, todayObj, monthAbs, occurrenceAtMonth, diffDays, weekdayMon,
+    nextDue, prevOccurrence, nextPayday, statusForDue} = window.Fechas;
   // Marca como pagada la fecha `dueISO` y la guarda en el Historial con id fijo
   // (pago_fecha), para no duplicar. Devuelve {antes, historyId, historial}: `antes`
   // sirve para deshacer y `historial` es la promesa de la entrada del Historial.
@@ -549,6 +481,36 @@
     messagingSenderId: "783588307830",
     appId: "1:783588307830:web:8b48c58d61b53cbb304057"
   };
+  // ---------- Avisos en el teléfono ----------
+  // La llave pública de "Certificados push web" (Firebase > Configuración > Cloud Messaging).
+  // Es pública por diseño: solo identifica a la app; mandar avisos requiere la llave privada de servicio.
+  const LLAVE_AVISOS = 'BPNRaaxsQvagmDUMmhQI-lEzHyOd6PMgHl8qNugzX9mebevlASY-7uWgmPZbsbg20KwRcb_jxoXnmTPO9KqFR64';
+  const esIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+  const instalada = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  function cargarScript(src){
+    return new Promise((ok, mal)=>{ const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = mal; document.head.appendChild(s); });
+  }
+  // Pide permiso (si hace falta), obtiene el "domicilio" del teléfono para los avisos y lo
+  // guarda en pushTokens. `preguntar` en false solo lo renueva si ya había permiso.
+  async function activarAvisos(preguntar){
+    if(!LLAVE_AVISOS) throw new Error('sin-llave');
+    if(esIOS && !instalada) throw new Error('instalar');
+    if(!('Notification' in window) || !('serviceWorker' in navigator)) throw new Error('no-soportado');
+    if(Notification.permission !== 'granted'){
+      if(!preguntar) return false;
+      if(await Notification.requestPermission() !== 'granted') throw new Error('sin-permiso');
+    }
+    if(!firebase.messaging) await cargarScript('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+    if(!(await firebase.messaging.isSupported())) throw new Error('no-soportado');
+    conectar();
+    const reg = await navigator.serviceWorker.ready;
+    const token = await firebase.messaging().getToken({vapidKey: LLAVE_AVISOS, serviceWorkerRegistration: reg});
+    const u = firebase.auth().currentUser;
+    await conectar().collection('pushTokens').doc(token).set({email: u ? u.email : null, ios: esIOS, updatedAt: new Date().toISOString()});
+    return true;
+  }
+  function avisosActivos(){ return 'Notification' in window && Notification.permission === 'granted' && !!LLAVE_AVISOS; }
+
   // Para instalarla como app y que abra sin señal (ver sw.js).
   if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
 
@@ -575,5 +537,6 @@
     fechas: {parseISO, toISO, cmp, daysInMonth, addDays, todayObj, monthAbs, occurrenceAtMonth, diffDays, weekdayMon},
     nextDue, prevOccurrence, nextPayday, statusForDue, marcarPagado, desmarcarPago, pagarConAviso,
     elegirFoto, guardarTicket, borrarTicket, verTicket, aviso,
-    TIPOS_NOTA, tipoDe, esFecha, eventosDelMes, fechaDeNota, opcionesTipoNota, documentosComoFechas, enlaceCalendario, prepararImagen };
+    TIPOS_NOTA, tipoDe, esFecha, eventosDelMes, fechaDeNota, opcionesTipoNota, documentosComoFechas, enlaceCalendario, prepararImagen,
+    activarAvisos, avisosActivos };
 })();
