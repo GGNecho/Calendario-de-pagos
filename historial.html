@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Historial</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="estilo.css">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#6B4A2E">
+<meta name="theme-color" content="#F2F2F0">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icons/icono-192.png">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -17,95 +17,165 @@
 <script src="fechas.js"></script>
 <script src="comun.js"></script>
 <style>
-.month-nav{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.month-nav .label{ font-weight:700; font-size:16px; }
-.nav-btn{ width:40px; height:40px; border-radius:999px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); font-size:16px; cursor:pointer; }
-.total{ font-size:30px; margin-top:12px; }
-.compare{ font-size:12.5px; color:var(--ink-faint); margin-top:2px; }
-.bars{ display:flex; align-items:flex-end; gap:8px; height:130px; margin-top:10px; }
-.bar{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:4px; height:100%; cursor:pointer; background:none; border:none; padding:0; font:inherit; color:inherit; }
-.bar-fill{ width:100%; max-width:40px; border-radius:6px 6px 2px 2px; background:color-mix(in srgb, var(--accent) 35%, transparent); min-height:2px; }
-.bar.sel .bar-fill{ background:var(--accent); }
-.bar-fill.is-zero{ background:none; border-top:2px dashed var(--border); border-radius:0; min-height:0; }
-.bar-amt{ font-family:var(--font-mono); font-variant-numeric:tabular-nums; font-size:10.5px; color:var(--ink-faint); white-space:nowrap; }
-.bar.sel .bar-amt{ color:var(--ink); font-weight:600; }
-.bar-lbl{ font-size:11px; color:var(--ink-faint); }
-.bar.sel .bar-lbl{ color:var(--ink); font-weight:700; }
-.cat{ display:grid; grid-template-columns:1fr auto; gap:4px 10px; align-items:center; margin-bottom:10px; font-size:13.5px; }
-.cat-track{ grid-column:1 / -1; height:6px; border-radius:999px; background:var(--surface-2); overflow:hidden; }
-.cat-fill{ height:100%; border-radius:999px; background:var(--accent); }
-.cat-fill.cerca{ background:var(--warn); }
-.cat-fill.pasado{ background:var(--critical); }
-.cat .tope{ color:var(--ink-faint); font-weight:400; }
-.cat-aviso{ grid-column:1 / -1; font-size:12px; color:var(--critical); font-weight:600; }
-.entry{ display:flex; gap:10px; align-items:center; padding:10px 2px; border-top:1px solid var(--border); }
-.entry:first-child{ border-top:none; }
-.entry-day{ flex:0 0 42px; text-align:center; font-size:12px; color:var(--ink-faint); line-height:1.15; }
-.entry-day b{ display:block; font-size:17px; color:var(--ink); }
-.entry-main{ flex:1; min-width:0; }
-.entry-name{ font-weight:600; font-size:14.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.entry-meta{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:2px; }
-.entry-meta .ticket-link{ padding:4px 2px; color:var(--ink-soft); }
-.entry .btn-link{ padding:10px 8px; font-size:14px; }
-.head-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px; }
-.head-row h2{ margin:0; }
+/* Historial: el tablero de gastos del mes (barras por día, pronóstico, categorías y presupuesto). */
+.fin-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+.fin-top .tema-mes{ margin:0; }
+.mes-nav{ display:flex; gap:6px; }
+.total-mes{ margin:6px 0 0; }
+.chips{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:6px; }
+
+/* Barras por día del mes: gris lo que falta del mes, color lo que ya se gastó. */
+.barras-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.barras-head h2{ margin:0; }
+.barras-head p{ margin:2px 0 0; font:13px var(--font-mono); color:var(--ink-faint); }
+.barras{ position:relative; display:grid; grid-template-columns:minmax(0,1fr) 30px; gap:0 6px; margin-top:14px; }
+.barras-cols{ display:flex; align-items:flex-end; gap:3px; height:150px; }
+.dia{ flex:1; height:100%; display:flex; align-items:flex-end; position:relative; padding:0; border:none; background:none; cursor:pointer; }
+.dia .pista{ position:absolute; inset:0; border-radius:6px; background:var(--pista); }
+.dia .relleno{ position:relative; width:100%; border-radius:6px; background:color-mix(in srgb, var(--accent) 75%, transparent); min-height:0; }
+.dia.futuro .relleno{ display:none; }
+.dia.sel .relleno{ background:var(--accent); }
+.dia:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+.eje{ display:flex; flex-direction:column; justify-content:space-between; height:150px; font:11px var(--font-mono); color:var(--ink-faint); text-align:right; }
+.barras-x{ display:flex; justify-content:space-between; margin-top:6px; font:11px var(--font-mono); color:var(--ink-faint); padding-right:36px; }
+.globo-dia{ position:absolute; top:-6px; transform:translate(-50%, -100%); text-align:center; pointer-events:none; white-space:nowrap; }
+.globo-dia b{ display:block; font:600 17px var(--font-mono); color:var(--accent); }
+.globo-dia span{ font-size:12px; color:var(--ink-faint); }
+.barras-espacio{ height:44px; }
+
+/* Cuadritos de resumen que se deslizan de lado. */
+.stats{ display:grid; grid-auto-flow:column; grid-auto-columns:minmax(132px, 1fr); gap:10px; overflow-x:auto; scrollbar-width:none; margin:0 -16px; padding:2px 16px; }
+.stat{ text-align:left; padding:12px 14px; border-radius:18px; background:var(--surface); border:none; color:inherit; font:inherit; cursor:pointer; display:flex; flex-direction:column; gap:4px; }
+.stat:hover{ background:var(--surface-2); }
+.stat-lbl{ font-size:12.5px; color:var(--ink-soft); }
+.stat-val{ font:500 22px var(--font-mono); letter-spacing:-0.03em; white-space:nowrap; }
+.stat.alerta .stat-val{ color:var(--critical); }
+
+/* Dona de categorías: arcos redondeados con hueco entre ellos y el total al centro. */
+.dona-caja{ display:flex; justify-content:center; padding:8px 0 4px; }
+.dona{ width:min(240px, 70vw); height:auto; }
+.dona text{ font-family:var(--font-mono); }
+.cats{ list-style:none; margin:10px 0 0; padding:0; border-radius:18px; background:var(--surface-2); overflow:hidden; }
+.cat{ display:grid; grid-template-columns:auto auto 1fr auto; align-items:center; gap:4px 10px; padding:12px 14px; }
+.cat + .cat{ border-top:1px solid var(--border); }
+.cat-punto{ width:8px; height:8px; border-radius:50%; }
+.cat-emoji{ font-size:18px; }
+.cat-nombre{ font-weight:500; font-size:15px; }
+.cat-monto{ font:500 15px var(--font-mono); text-align:right; white-space:nowrap; }
+.cat-monto small{ display:block; font-size:11.5px; color:var(--ink-faint); font-weight:400; }
+.cat-barra{ grid-column:3 / -1; height:4px; border-radius:999px; background:var(--pista); overflow:hidden; }
+.cat-barra i{ display:block; height:100%; border-radius:999px; }
+.cat-aviso{ grid-column:3 / -1; font-size:12px; color:var(--critical); font-weight:600; }
+
+/* Lista de gastos del mes. */
+.gastos{ list-style:none; margin:8px 0 0; padding:0; }
+.gasto{ display:flex; gap:12px; align-items:center; padding:11px 0; }
+.gasto + .gasto{ border-top:1px solid var(--border); }
+.gasto-ic{ flex:0 0 auto; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; background:var(--surface-2); }
+.gasto-main{ flex:1; min-width:0; }
+.gasto-nombre{ font-weight:500; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gasto-meta{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-top:2px; font-size:12.5px; color:var(--ink-faint); }
+.gasto-meta .btn-link{ padding:2px 0; font-size:12.5px; color:var(--ink-soft); text-decoration:underline; }
+.gasto-monto{ font:500 15px var(--font-mono); white-space:nowrap; }
+.gasto .btn-link.quitar{ padding:10px 4px; font-size:14px; }
+
+/* Hoja del pronóstico. */
+.pron-num{ text-align:center; font:500 46px var(--font-mono); letter-spacing:-0.04em; margin:6px 0 0; }
+.pron-sub{ text-align:center; color:var(--ink-faint); margin:2px 0 14px; }
+.pron-txt{ text-align:center; color:var(--ink-soft); margin:0 0 10px; }
+.pron-graf{ width:100%; height:auto; }
+.pron-graf text{ font:10px var(--font-mono); fill:var(--ink-faint); }
+.leyenda{ display:flex; gap:18px; justify-content:center; font-size:13px; color:var(--ink-soft); margin:6px 0 14px; }
+.leyenda i{ display:inline-block; width:16px; height:0; border-top:3px solid var(--accent); vertical-align:middle; margin-right:6px; }
+.leyenda i.punteada{ border-top:2px dashed var(--ink-faint); }
+.mini-stats{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.mini-stats div{ background:var(--surface-2); border-radius:16px; padding:12px 14px; }
+.mini-stats span{ font-size:12.5px; color:var(--ink-soft); }
+.mini-stats b{ display:block; font:500 22px var(--font-mono); letter-spacing:-0.03em; }
+
+/* Hoja del presupuesto: el número grande arriba, las categorías opcionales abajo. */
+.pres-grande{ display:flex; justify-content:center; align-items:baseline; gap:4px; margin:10px 0 16px; }
+.pres-grande input{ width:7ch; border:none; background:none; text-align:center; font:500 46px var(--font-mono); letter-spacing:-0.04em; color:var(--ink); padding:0; }
+.pres-grande input:focus{ outline:none; border-bottom:2px solid var(--accent); }
+.pres-grande span{ font:500 24px var(--font-mono); color:var(--ink-faint); }
+details.pres-cats summary{ cursor:pointer; font-weight:600; font-size:14px; padding:6px 0 10px; }
 </style>
 </head>
-<body>
-<div class="page dos-col">
+<body class="limpio">
+<div class="page">
   <header class="hero">
-    <h1>Historial</h1>
-    <p>Lo que ya se pagó: los pagos que marcan como hechos en el Calendario y lo que pasan desde Notas.</p>
+    <div class="fin-top">
+      <div><h1>Historial</h1></div>
+      <div class="mes-nav">
+        <button type="button" class="redondo" id="prev" aria-label="Mes anterior">‹</button>
+        <button type="button" class="redondo" id="next" aria-label="Mes siguiente">›</button>
+      </div>
+    </div>
+    <div class="numero-grande total-mes" id="monthTotal">—</div>
+    <div class="chips"><span class="chip" id="monthLabel">—</span><span class="chip" id="monthCompare" hidden></span></div>
   </header>
 
-  <div class="col-lado fijo">
   <section class="card">
-    <div class="month-nav">
-      <button type="button" class="nav-btn" id="prev" aria-label="Mes anterior">‹</button>
-      <span class="label" id="monthLabel">—</span>
-      <button type="button" class="nav-btn" id="next" aria-label="Mes siguiente">›</button>
+    <div class="barras-head">
+      <div><h2>↓ Gastos</h2><p id="barrasSub"></p></div>
     </div>
-    <div class="total money" id="monthTotal">—</div>
-    <div class="compare" id="monthCompare"></div>
-    <div class="bars" id="bars"></div>
+    <div class="barras-espacio"></div>
+    <div class="barras">
+      <div class="barras-cols" id="barras"></div>
+      <div class="eje" id="eje"></div>
+    </div>
+    <div class="barras-x" id="barrasX"></div>
+  </section>
+
+  <div class="stats" id="stats"></div>
+
+  <section class="card">
+    <h2>Por categoría</h2>
+    <div class="dona-caja" id="dona"></div>
+    <ul class="cats" id="cats"></ul>
   </section>
 
   <section class="card">
-    <div class="head-row"><h2>Por categoría</h2><button type="button" class="btn btn-small" id="presBtn">Presupuesto</button></div>
-    <div id="cats"><div class="empty">Cargando…</div></div>
+    <h2>Gastos del mes</h2>
+    <ul class="gastos" id="entries"><li class="empty">Cargando…</li></ul>
   </section>
-  </div>
 
-  <div class="col-main">
-  <section class="card">
-    <div class="head-row">
-      <h2>Gastos del mes</h2>
-      <button type="button" class="btn btn-small" id="addBtn">+ Agregar gasto</button>
-    </div>
-    <div id="entries"><div class="empty">Cargando…</div></div>
-  </section>
   <section class="card">
     <h2>Notas terminadas</h2>
-    <div id="hechas"><div class="empty">Cargando…</div></div>
+    <ul class="gastos" id="hechas"><li class="empty">Cargando…</li></ul>
   </section>
+</div>
+
+<button type="button" class="fab" id="addBtn" aria-label="Agregar gasto">+</button>
+
+<div class="modal-backdrop" id="pronBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pronTitulo">
+    <h2 id="pronTitulo">Pronóstico del mes</h2>
+    <button type="button" class="redondo cerrar" data-close aria-label="Cerrar">✕</button>
+    <p class="pron-num" id="pronNum">—</p>
+    <p class="pron-sub" id="pronSub"></p>
+    <p class="pron-txt" id="pronTxt"></p>
+    <svg class="pron-graf" id="pronGraf" viewBox="0 0 320 150" aria-hidden="true"></svg>
+    <div class="leyenda"><span><i></i>Gastado</span><span><i class="punteada"></i>Pronóstico</span></div>
+    <div class="mini-stats"><div><span>Gastado hasta hoy</span><b id="pronGastado">—</b></div><div><span>Promedio por día</span><b id="pronDia">—</b></div></div>
   </div>
 </div>
 
 <div class="modal-backdrop" id="presBackdrop" hidden>
   <form class="modal" id="presForm">
     <h2>Presupuesto del mes</h2>
-    <p class="muted" style="margin:-6px 0 14px">Cuánto quieren gastar como máximo en cada categoría al mes. Déjalo vacío si no quieren límite.</p>
-    <div id="presCampos"></div>
-    <div class="modal-actions">
-      <button type="button" class="btn" data-close>Cancelar</button>
-      <button type="submit" class="btn btn-primary">Guardar</button>
-    </div>
+    <button type="button" class="redondo cerrar" data-close aria-label="Cerrar">✕</button>
+    <p class="muted">Un límite para todo el mes. Les aviso aquí cuando se acerquen o se pasen.</p>
+    <div class="pres-grande"><input type="number" id="p-total" min="0" step="100" inputmode="decimal" placeholder="0" aria-label="Presupuesto del mes en pesos"><span>$</span></div>
+    <details class="pres-cats"><summary>Límites por categoría (opcional)</summary><div id="presCampos"></div></details>
+    <button type="submit" class="btn btn-primary btn-ancho">Guardar</button>
   </form>
 </div>
 
 <div class="modal-backdrop" id="addBackdrop" hidden>
   <form class="modal" id="addForm">
     <h2>Agregar gasto</h2>
+    <button type="button" class="redondo cerrar" data-close aria-label="Cerrar">✕</button>
     <div class="field"><label for="a-name">Concepto</label><input type="text" id="a-name" required placeholder="Ej. Súper, gasolina, farmacia…"></div>
     <div class="row">
       <div class="field"><label for="a-amount">Monto (MXN)</label><input type="number" id="a-amount" min="0" step="0.01" inputmode="decimal" required></div>
@@ -113,10 +183,7 @@
     </div>
     <div class="field"><label for="a-category">Categoría</label><select id="a-category"></select></div>
     <div class="field"><label for="a-ticket">Foto del ticket (opcional)</label><input type="file" id="a-ticket" accept="image/*"></div>
-    <div class="modal-actions">
-      <button type="button" class="btn" data-close>Cancelar</button>
-      <button type="submit" class="btn btn-primary">Guardar</button>
-    </div>
+    <button type="submit" class="btn btn-primary btn-ancho">Guardar</button>
   </form>
 </div>
 
@@ -128,84 +195,186 @@
   const money = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN', maximumFractionDigits:0});
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const MES_CORTO = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  const DIAS = ['dom','lun','mar','mié','jue','vie','sáb'];
+  // Emoji y color de cada categoría (para la dona, la lista y los gastos).
+  const CAT_VISTA = {
+    super:{e:'🛒', c:'#FFA94D'}, comida:{e:'🍔', c:'#FF6B6B'}, casa:{e:'🏠', c:'#F76707'}, transporte:{e:'🚗', c:'#F06595'},
+    salud:{e:'🩺', c:'#CC5DE8'}, ocio:{e:'🎉', c:'#20C997'}, personal:{e:'📌', c:'#FAB005'}, suscripcion:{e:'📺', c:'#22B8CF'},
+    negocio:{e:'💼', c:'#5C7CFA'}, otro:{e:'✨', c:'#ADB5BD'},
+  };
+  const vista = c => CAT_VISTA[c] || CAT_VISTA.otro;
   const db = Comun.conectar();
   const $ = id => document.getElementById(id);
-  let entries = [];
-  let presupuesto = {};
-  const now = new Date();
-  let view = {y: now.getFullYear(), m: now.getMonth()};
+  const toast = msg => Comun.aviso(msg);
+  const {daysInMonth, todayObj} = Comun.fechas;
+  let entries = [], presupuesto = {}, diaSel = 1, diaElegido = false;
+  const hoy = todayObj();
+  let view = {y: hoy.y, m: hoy.m};
 
   function escapeHTML(t){ return String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  function toast(msg){ const t=$('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true, 2600); }
   function key(y,m){ return y+'-'+String(m+1).padStart(2,'0'); }
   function shift(v, n){ const a=v.y*12+v.m+n; return {y:Math.floor(a/12), m:((a%12)+12)%12}; }
-  function totalOf(k){ return entries.filter(e=>String(e.date).startsWith(k)).reduce((s,e)=>s+Number(e.amount||0),0); }
-  // Monto corto para las barras: 13660 → "$13.7k", 850 → "$850".
-  function corto(v){ return v >= 1000 ? '$' + (v/1000).toFixed(v >= 100000 ? 0 : 1).replace(/\.0$/,'') + 'k' : '$' + Math.round(v); }
+  function delMes(v){ const k = key(v.y, v.m); return entries.filter(e=>String(e.date).startsWith(k)); }
+  const suma = l => l.reduce((s,e)=>s+Number(e.amount||0),0);
+  // Monto corto para ejes: 13660 → "13.7k", 850 → "850".
+  function corto(v){ return v >= 1000 ? (v/1000).toFixed(v >= 100000 ? 0 : 1).replace(/\.0$/,'') + 'k' : String(Math.round(v)); }
   const FUENTE = {calendario:'Calendario', nota:'Nota', manual:'Manual'};
 
-  $('a-category').innerHTML = Object.entries(Comun.CATEGORIAS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
-
-  function render(){
-    const k = key(view.y, view.m);
-    const list = entries.filter(e=>String(e.date).startsWith(k)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-    const total = list.reduce((s,e)=>s+Number(e.amount||0),0);
-    $('monthLabel').textContent = MESES[view.m] + ' ' + view.y;
-    $('monthTotal').textContent = money.format(total);
-    const prev = shift(view,-1), prevTotal = totalOf(key(prev.y, prev.m));
-    if(prevTotal > 0){
-      const diff = total - prevTotal;
-      $('monthCompare').textContent = (diff >= 0 ? money.format(diff)+' más' : money.format(-diff)+' menos') + ' que en ' + MESES[prev.m].toLowerCase();
-    } else {
-      $('monthCompare').textContent = list.length + ' gasto' + (list.length===1?'':'s');
-    }
-
-    // Últimos 6 meses hasta el mes que se está viendo.
-    const months = [-5,-4,-3,-2,-1,0].map(n=>shift(view,n));
-    const totals = months.map(v=>totalOf(key(v.y,v.m)));
-    const max = Math.max(1, ...totals);
-    $('bars').innerHTML = months.map((v,i)=>`<button type="button" class="bar${i===5?' sel':''}" data-y="${v.y}" data-m="${v.m}" aria-label="${MESES[v.m]}: ${money.format(totals[i])}">
-        <span class="bar-amt">${totals[i] ? corto(totals[i]) : '—'}</span>
-        <span class="bar-fill${totals[i] ? '' : ' is-zero'}" style="height:${Math.round(totals[i]/max*70)}%"></span><span class="bar-lbl">${MES_CORTO[v.m]}</span></button>`).join('');
-
-    // Con presupuesto, la barra es lo gastado contra ese límite (roja si se pasó); sin él, contra el total del mes.
-    const byCat = {};
-    list.forEach(e=>{ const c = e.category || 'otro'; byCat[c] = (byCat[c]||0) + Number(e.amount||0); });
-    Object.keys(presupuesto).forEach(c=>{ if(presupuesto[c] > 0 && !(c in byCat)) byCat[c] = 0; });
-    const cats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
-    $('cats').innerHTML = cats.length ? cats.map(([c,v])=>{
-      const tope = Number(presupuesto[c] || 0);
-      const pct = tope ? v/tope*100 : (total ? v/total*100 : 0);
-      const pasado = tope && v > tope;
-      return `<div class="cat">
-        <span>${escapeHTML(Comun.CATEGORIAS[c] || c)}</span><span class="money">${money.format(v)}${tope ? `<span class="tope"> de ${money.format(tope)}</span>` : ''}</span>
-        <div class="cat-track"><div class="cat-fill${pasado ? ' pasado' : tope && pct >= 80 ? ' cerca' : ''}" style="width:${v ? Math.max(2, Math.min(100, pct)) : 0}%"></div></div>
-        ${pasado ? `<span class="cat-aviso">Se pasaron por ${money.format(v - tope)}</span>` : ''}
-      </div>`;
-    }).join('') : '<div class="empty">Sin gastos este mes.</div>';
-
-    $('entries').innerHTML = list.length ? list.map(e=>{
-      const [y,m,d] = String(e.date).split('-').map(Number);
-      const wd = DIAS[new Date(y, m-1, d).getDay()];
-      return `<div class="entry">
-        <div class="entry-day"><b>${d}</b>${wd}</div>
-        <div class="entry-main">
-          <div class="entry-name">${escapeHTML(e.name||'Sin nombre')}</div>
-          <div class="entry-meta">${Comun.quien(e.by)}<span class="tag">${escapeHTML(Comun.CATEGORIAS[e.category] || 'Otro')}</span><span class="muted">${FUENTE[e.source]||''}</span>
-            ${e.ticket ? `<button type="button" class="btn-link ticket-link" data-ver="${e.id}">📎 Ver ticket</button>` : `<button type="button" class="btn-link ticket-link" data-ticket="${e.id}">+ Ticket</button>`}</div>
-        </div>
-        <span class="money">${money.format(Number(e.amount||0))}</span>
-        <button type="button" class="btn-link" data-del="${e.id}" aria-label="Borrar">✕</button>
-      </div>`;
-    }).join('') : '<div class="empty">Sin gastos este mes. Marca pagos como hechos en el Calendario o pasa notas aquí.</div>';
+  // Cuánto va del mes que se ve: todo si ya pasó, hasta hoy si es el actual, nada si es futuro.
+  function diasTranscurridos(){
+    const dim = daysInMonth(view.y, view.m);
+    if(view.y*12+view.m < hoy.y*12+hoy.m) return dim;
+    if(view.y === hoy.y && view.m === hoy.m) return hoy.d;
+    return 0;
   }
 
-  $('prev').addEventListener('click', ()=>{ view = shift(view,-1); render(); });
-  $('next').addEventListener('click', ()=>{ view = shift(view,1); render(); });
-  $('bars').addEventListener('click', e=>{
-    const b = e.target.closest('.bar'); if(!b) return;
-    view = {y:Number(b.dataset.y), m:Number(b.dataset.m)}; render();
+  $('a-category').innerHTML = Object.entries(Comun.CATEGORIAS).map(([k,v])=>`<option value="${k}">${vista(k).e} ${v}</option>`).join('');
+
+  function render(){
+    const list = delMes(view).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    const total = suma(list);
+    const dim = daysInMonth(view.y, view.m), pasados = diasTranscurridos();
+    $('monthTotal').textContent = money.format(total);
+    $('monthLabel').textContent = '📅 ' + MESES[view.m] + ' ' + view.y;
+    const prevTotal = suma(delMes(shift(view,-1)));
+    const cmpEl = $('monthCompare');
+    cmpEl.hidden = !prevTotal;
+    if(prevTotal){
+      const pct = Math.round((total - prevTotal) / prevTotal * 100);
+      cmpEl.textContent = (pct >= 0 ? '↑ ' : '↓ ') + Math.abs(pct) + '% vs ' + MES_CORTO[shift(view,-1).m];
+      cmpEl.className = 'chip ' + (pct > 0 ? 'mal' : 'bien'); // gastar más es "mal"
+    }
+
+    // Barras por día.
+    const porDia = Array(dim + 1).fill(0);
+    list.forEach(e=>{ const d = Number(String(e.date).slice(8,10)); if(d) porDia[d] += Number(e.amount||0); });
+    const max = Math.max(1, ...porDia);
+    // Sin elegir uno, se marca el último día con gastos (o hoy).
+    if(!diaElegido || diaSel > dim){ diaSel = 1; for(let d = Math.max(1, pasados); d >= 1; d--){ if(porDia[d]){ diaSel = d; break; } } if(diaSel === 1 && !porDia[1]) diaSel = Math.max(1, pasados); }
+    $('barrasSub').textContent = list.length + ' gasto' + (list.length===1?'':'s') + ' en ' + MESES[view.m].toLowerCase();
+    $('barras').innerHTML = porDia.slice(1).map((v, i)=>{
+      const d = i + 1;
+      return `<button type="button" class="dia${d > pasados ? ' futuro' : ''}${d === diaSel ? ' sel' : ''}" data-dia="${d}" aria-label="${d} ${MES_CORTO[view.m]}: ${money.format(v)}">
+        <span class="pista"></span><span class="relleno" style="height:${v ? Math.max(4, v/max*100) : 0}%"></span></button>`;
+    }).join('') + `<span class="globo-dia" id="globoDia"></span>`;
+    $('eje').innerHTML = `<span>${corto(max)}</span><span>${corto(max/2)}</span><span>0</span>`;
+    $('barrasX').innerHTML = [1,5,9,13,17,21,25,29].filter(d=> d <= dim).map(d=>`<span>${d}</span>`).join('');
+    pintarGlobo(porDia);
+
+    // Cuadritos de resumen.
+    const porDiaProm = pasados ? total / pasados : 0;
+    const pron = pasados ? porDiaProm * dim : 0;
+    const tope = Number(presupuesto.total || 0);
+    $('stats').innerHTML = `
+      <button type="button" class="stat" data-ir="lista"><span class="stat-lbl">Gastado</span><span class="stat-val">${money.format(total)}</span></button>
+      <button type="button" class="stat" data-ir="pron"><span class="stat-lbl">Por día</span><span class="stat-val">${money.format(porDiaProm)}</span></button>
+      <button type="button" class="stat${tope && pron > tope ? ' alerta' : ''}" data-ir="pron"><span class="stat-lbl">Pronóstico</span><span class="stat-val">${pasados ? money.format(pron) : '—'}</span></button>
+      <button type="button" class="stat${tope && total > tope ? ' alerta' : ''}" data-ir="pres"><span class="stat-lbl">Presupuesto</span><span class="stat-val">${tope ? Math.round(total/tope*100) + '%' : 'Poner'}</span></button>`;
+
+    // Dona y lista de categorías (con su límite si tienen).
+    const byCat = {};
+    list.forEach(e=>{ const c = e.category || 'otro'; byCat[c] = (byCat[c]||0) + Number(e.amount||0); });
+    Object.keys(presupuesto).forEach(c=>{ if(c !== 'total' && presupuesto[c] > 0 && !(c in byCat)) byCat[c] = 0; });
+    const cats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+    $('dona').innerHTML = donaSVG(cats.filter(([,v])=> v > 0), total);
+    $('cats').innerHTML = cats.length ? cats.map(([c,v])=>{
+      const t = Number(presupuesto[c] || 0), pasado = t && v > t, pct = t ? v/t*100 : (total ? v/total*100 : 0);
+      return `<li class="cat">
+        <span class="cat-punto" style="background:${vista(c).c}"></span><span class="cat-emoji">${vista(c).e}</span>
+        <span class="cat-nombre">${escapeHTML(Comun.CATEGORIAS[c] || c)}</span>
+        <span class="cat-monto">${money.format(v)}${t ? `<small>de ${money.format(t)}</small>` : ''}</span>
+        ${t ? `<span class="cat-barra"><i style="width:${Math.min(100, pct)}%;background:${pasado ? 'var(--critical)' : pct >= 80 ? 'var(--warn)' : vista(c).c}"></i></span>` : ''}
+        ${pasado ? `<span class="cat-aviso">Se pasaron por ${money.format(v - t)}</span>` : ''}
+      </li>`;
+    }).join('') : '<li class="empty" style="padding:14px">Sin gastos este mes.</li>';
+
+    // Gastos del mes.
+    $('entries').innerHTML = list.length ? list.map(e=>{
+      const d = Number(String(e.date).slice(8,10));
+      return `<li class="gasto">
+        <span class="gasto-ic" style="background:color-mix(in srgb, ${vista(e.category).c} 18%, transparent)">${vista(e.category).e}</span>
+        <div class="gasto-main">
+          <div class="gasto-nombre">${escapeHTML(e.name||'Sin nombre')}</div>
+          <div class="gasto-meta"><span>${d} ${MES_CORTO[view.m]}</span>${Comun.quien(e.by)}<span>${FUENTE[e.source]||''}</span>
+            ${e.ticket ? `<button type="button" class="btn-link" data-ver="${e.id}">📎 Ver ticket</button>` : `<button type="button" class="btn-link" data-ticket="${e.id}">+ Ticket</button>`}</div>
+        </div>
+        <span class="gasto-monto">${money.format(Number(e.amount||0))}</span>
+        <button type="button" class="btn-link quitar" data-del="${e.id}" aria-label="Borrar ${escapeHTML(e.name||'gasto')}">✕</button>
+      </li>`;
+    }).join('') : '<li class="empty">Sin gastos este mes. Marquen pagos como hechos en el Calendario o agreguen uno con +.</li>';
+  }
+
+  // El número de arriba de la barra elegida (como el globito de la referencia).
+  function pintarGlobo(porDia){
+    const g = $('globoDia'), b = $('barras').querySelector(`[data-dia="${diaSel}"]`);
+    if(!g || !b) return;
+    g.innerHTML = `<b>${money.format(porDia[diaSel] || 0)}</b><span>${diaSel} ${MES_CORTO[view.m]}</span>`;
+    g.style.left = (b.offsetLeft + b.offsetWidth/2) + 'px';
+  }
+
+  // Dona: cada categoría es un arco con puntas redondas y un hueco entre arcos.
+  function donaSVG(cats, total){
+    const R = 70, C = 2*Math.PI*R, hueco = cats.length > 1 ? 14 : 0;
+    let ini = 0;
+    const arcos = cats.map(([c,v])=>{
+      const largo = Math.max(1, v/total*C - hueco);
+      const s = `<circle cx="100" cy="100" r="${R}" fill="none" stroke="${vista(c).c}" stroke-width="26" stroke-linecap="round"
+        stroke-dasharray="${largo.toFixed(1)} ${C}" stroke-dashoffset="${(-ini).toFixed(1)}" transform="rotate(-90 100 100)"/>`;
+      ini += v/total*C;
+      return s;
+    }).join('');
+    const fondo = cats.length ? '' : `<circle cx="100" cy="100" r="${R}" fill="none" stroke="var(--pista)" stroke-width="26"/>`;
+    return `<svg class="dona" viewBox="0 0 200 200" role="img" aria-label="Gastos por categoría, total ${money.format(total)}">${fondo}${arcos}
+      <text x="100" y="98" text-anchor="middle" font-size="20" font-weight="600" fill="currentColor">${money.format(total)}</text>
+      <text x="100" y="118" text-anchor="middle" font-size="11" fill="var(--ink-faint)">gastos</text></svg>`;
+  }
+
+  // Hoja del pronóstico: lo gastado día a día y la línea punteada a fin de mes.
+  function abrirPronostico(){
+    const list = delMes(view), total = suma(list);
+    const dim = daysInMonth(view.y, view.m), pasados = diasTranscurridos();
+    const prom = pasados ? total / pasados : 0, pron = prom * dim;
+    const tope = Number(presupuesto.total || 0);
+    $('pronNum').textContent = pasados ? money.format(pron) : '—';
+    $('pronSub').textContent = pasados ? (pasados === dim ? 'El mes ya cerró' : pasados + ' de ' + dim + ' días') : 'El mes todavía no empieza';
+    $('pronTxt').textContent = !pasados ? '' : pasados === dim ? 'Así quedó el mes completo.'
+      : 'Si siguen gastando al mismo ritmo, así cerraría el mes' + (tope ? (pron > tope ? ', ' + money.format(pron - tope) + ' arriba del presupuesto.' : ', dentro del presupuesto.') : '.');
+    $('pronGastado').textContent = money.format(total);
+    $('pronDia').textContent = money.format(prom);
+    // Acumulado por día.
+    const acum = [0]; const porDia = Array(dim + 1).fill(0);
+    list.forEach(e=>{ const d = Number(String(e.date).slice(8,10)); if(d) porDia[d] += Number(e.amount||0); });
+    for(let d=1; d<=pasados; d++) acum.push(acum[d-1] + porDia[d]);
+    const maxY = Math.max(1, pron, total, tope), X = d => 30 + d/dim*280, Y = v => 130 - v/maxY*115;
+    const linea = acum.map((v,d)=> `${X(d).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+    $('pronGraf').innerHTML = `
+      <line x1="30" y1="130" x2="310" y2="130" stroke="var(--border)"/>
+      ${[maxY, maxY/2, 0].map(v=>`<text x="2" y="${Y(v)+3}">${corto(v)}</text>`).join('')}
+      <text x="30" y="146">1</text><text x="300" y="146">${dim}</text>
+      ${tope ? `<line x1="30" y1="${Y(tope)}" x2="310" y2="${Y(tope)}" stroke="var(--critical)" stroke-dasharray="2 4" opacity=".6"/>` : ''}
+      ${pasados ? `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(dim)}" y2="${Y(pron)}" stroke="var(--ink-faint)" stroke-width="1.5" stroke-dasharray="5 5"/>
+        <polygon points="${X(0)},130 ${linea} ${X(pasados)},130" fill="color-mix(in srgb, var(--accent) 22%, transparent)"/>
+        <polyline points="${linea}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>` : ''}`;
+    $('pronBackdrop').hidden = false;
+  }
+
+  function abrirPresupuesto(){
+    $('p-total').value = presupuesto.total || '';
+    $('presCampos').innerHTML = Object.entries(Comun.CATEGORIAS).map(([k,v])=>`<div class="field"><label for="p-${k}">${vista(k).e} ${v}</label>
+      <input type="number" id="p-${k}" data-cat="${k}" min="0" step="50" inputmode="decimal" value="${presupuesto[k] || ''}" placeholder="Sin límite"></div>`).join('');
+    $('presBackdrop').hidden = false;
+  }
+
+  $('prev').addEventListener('click', ()=>{ view = shift(view,-1); diaElegido = false; suscribir(); render(); });
+  $('next').addEventListener('click', ()=>{ view = shift(view,1); diaElegido = false; render(); });
+  $('barras').addEventListener('click', e=>{
+    const b = e.target.closest('[data-dia]'); if(!b) return;
+    diaSel = Number(b.dataset.dia); diaElegido = true; render();
+  });
+  $('stats').addEventListener('click', e=>{
+    const b = e.target.closest('[data-ir]'); if(!b) return;
+    if(b.dataset.ir === 'pron') abrirPronostico();
+    else if(b.dataset.ir === 'pres') abrirPresupuesto();
+    else $('entries').scrollIntoView({behavior:'smooth', block:'start'});
   });
   $('entries').addEventListener('click', e=>{
     const ver = e.target.closest('[data-ver]');
@@ -230,7 +399,9 @@
     $('a-name').focus();
   });
   document.addEventListener('click', e=>{
-    if(e.target.matches('[data-close]') || e.target === $('addBackdrop')) $('addBackdrop').hidden = true;
+    if(e.target.closest('[data-close]') || e.target.classList.contains('modal-backdrop')){
+      $('addBackdrop').hidden = true; $('presBackdrop').hidden = true; $('pronBackdrop').hidden = true;
+    }
   });
   $('addForm').addEventListener('submit', e=>{
     e.preventDefault();
@@ -248,25 +419,21 @@
     }).catch(()=> toast('No se pudo guardar.'));
   });
 
-  // Presupuesto por categoría: config/budgets → {super: 5000, comida: 2000, …}
-  $('presBtn').addEventListener('click', ()=>{
-    $('presCampos').innerHTML = Object.entries(Comun.CATEGORIAS).map(([k,v])=>`<div class="field"><label for="p-${k}">${v}</label>
-      <input type="number" id="p-${k}" data-cat="${k}" min="0" step="50" inputmode="decimal" value="${presupuesto[k] || ''}" placeholder="Sin límite"></div>`).join('');
-    $('presBackdrop').hidden = false;
-  });
+  // Presupuesto: config/budgets → {total: 15000, super: 5000, comida: 2000, …}
   $('presForm').addEventListener('submit', e=>{
     e.preventDefault();
     const nuevo = {};
+    if(Number($('p-total').value) > 0) nuevo.total = Number($('p-total').value);
     $('presCampos').querySelectorAll('[data-cat]').forEach(i=>{ if(Number(i.value) > 0) nuevo[i.dataset.cat] = Number(i.value); });
     db.doc('config/budgets').set(nuevo).then(()=>{ $('presBackdrop').hidden = true; toast('Presupuesto guardado'); })
       .catch(()=> toast('No se pudo guardar.'));
   });
-  document.addEventListener('click', e=>{ if(e.target.matches('[data-close]') || e.target === $('presBackdrop')) $('presBackdrop').hidden = true; });
 
   // Solo se bajan los gastos desde 12 meses antes (no todo el historial); si se navega
   // más atrás de eso, se vuelve a pedir desde más lejos.
-  let desde = null, cancelar = null;
+  let desde = null, cancelar = null, listo = false;
   function suscribir(){
+    if(!listo) return;
     const inicio = shift(view, -12), k = key(inicio.y, inicio.m) + '-01';
     if(desde && k >= desde) return;
     desde = k;
@@ -276,28 +443,29 @@
       render();
     }, ()=> toast('No se pudo conectar con la base de datos.'));
   }
-  $('prev').addEventListener('click', ()=>{ if(cancelar) suscribir(); });
-  $('bars').addEventListener('click', ()=>{ if(cancelar) suscribir(); });
 
   // Las notas del Tablero que ya se terminaron (pagadas, pasadas al calendario o marcadas como listas).
   const ESTADO_NOTA = {history:'Pagada', calendar:'En el calendario', done:'Lista'};
   function renderHechas(notes){
     const lista = notes.filter(n=> n.status && n.status !== 'open').sort((a,b)=> String(b.createdAt).localeCompare(String(a.createdAt)));
-    $('hechas').innerHTML = lista.length ? lista.map(n=>`<div class="entry">
-        <div class="entry-main">
-          <div class="entry-name">${escapeHTML(n.text)}</div>
-          <div class="entry-meta">${Comun.esFecha(n) ? `<span class="tag accent">${Comun.fechaDeNota(n)}</span>` : ''}${Comun.quien(n.by)}<span class="tag ok">${ESTADO_NOTA[n.status] || 'Lista'}</span></div>
+    $('hechas').innerHTML = lista.length ? lista.map(n=>`<li class="gasto">
+        <span class="gasto-ic">${Comun.esFecha(n) ? Comun.TIPOS_NOTA[Comun.tipoDe(n)].emoji : '📝'}</span>
+        <div class="gasto-main">
+          <div class="gasto-nombre">${escapeHTML(n.text)}</div>
+          <div class="gasto-meta">${Comun.esFecha(n) ? `<span>${Comun.fechaDeNota(n)}</span>` : ''}${Comun.quien(n.by)}<span class="tag ok">${ESTADO_NOTA[n.status] || 'Lista'}</span></div>
         </div>
-        ${n.amount != null ? `<span class="money">${money.format(n.amount)}</span>` : ''}
-        <button type="button" class="btn-link" data-borrar-nota="${n.id}" aria-label="Borrar nota">✕</button>
-      </div>`).join('') : '<div class="empty">Aquí quedan las notas del Tablero cuando se pagan o se marcan como listas.</div>';
+        ${n.amount != null ? `<span class="gasto-monto">${money.format(n.amount)}</span>` : ''}
+        <button type="button" class="btn-link quitar" data-borrar-nota="${n.id}" aria-label="Borrar nota">✕</button>
+      </li>`).join('') : '<li class="empty">Aquí quedan las notas del Tablero cuando se pagan o se marcan como listas.</li>';
   }
   $('hechas').addEventListener('click', e=>{
     const b = e.target.closest('[data-borrar-nota]');
     if(b && confirm('¿Borrar esta nota?')) db.collection('notes').doc(b.dataset.borrarNota).delete().catch(()=> toast('No se pudo borrar.'));
   });
+  window.addEventListener('resize', ()=> render());
 
   requireAccess(()=>{
+    listo = true;
     suscribir();
     db.collection('notes').where('status', 'in', ['history','calendar','done'])
       .onSnapshot(qs=> renderHechas(qs.docs.map(d=>Object.assign({id:d.id}, d.data()))), ()=>{});

@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Documentos</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="estilo.css">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#6B4A2E">
+<meta name="theme-color" content="#F2F2F0">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icons/icono-192.png">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -33,7 +33,7 @@
 .head-row h2{ margin:0; }
 </style>
 </head>
-<body>
+<body class="limpio">
 <div class="page">
   <header class="hero">
     <h1>Documentos</h1>
@@ -41,10 +41,12 @@
   </header>
 
   <section class="card">
-    <div class="head-row"><h2>Guardados</h2><button type="button" class="btn btn-small" id="addDoc">+ Documento</button></div>
+    <div class="head-row"><h2>Guardados</h2></div>
     <div id="docs"><div class="empty">Cargando…</div></div>
   </section>
 </div>
+
+<button type="button" class="fab" id="addDoc" aria-label="Agregar documento">+</button>
 
 <div class="modal-backdrop" id="docBackdrop" hidden>
   <form class="modal" id="docForm" autocomplete="off">

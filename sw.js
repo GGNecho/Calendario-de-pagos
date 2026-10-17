@@ -2,7 +2,7 @@
 // propios. Siempre intenta primero la versión nueva de internet y solo si no hay red
 // usa la copia (así un cambio publicado se ve en cuanto hay señal). Los datos sin
 // señal los maneja Firestore aparte (ver conectar() en comun.js).
-const CACHE = 'calendario-v4';
+const CACHE = 'calendario-v5';
 const ARCHIVOS = ['./', 'tablero.html', 'index.html', 'historial.html', 'documentos.html',
   'estilo.css', 'fechas.js', 'comun.js', 'acceso.js', 'manifest.webmanifest', 'icons/icono-192.png', 'icons/icono-512.png'];
 

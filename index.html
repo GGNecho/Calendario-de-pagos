@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Calendario de Pagos</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="estilo.css">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#6B4A2E">
+<meta name="theme-color" content="#F2F2F0">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icons/icono-192.png">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -270,7 +270,7 @@ body{
 }
 </style>
 </head>
-<body>
+<body class="limpio">
 <div class="page">
   <header class="hero">
     <div class="hero-text">
@@ -293,7 +293,7 @@ body{
       <div class="sum-reparto"><span class="sum-reparto-lbl">Gastos compartidos al mes</span><div id="medidor"></div></div>
     </section>
 
-    <button id="addPaymentBtn" class="btn btn-primary add-main" disabled>+ Agregar pago</button>
+    <button id="addPaymentBtn" class="fab" disabled aria-label="Agregar pago">+</button>
     </div>
 
     <div class="col-main">

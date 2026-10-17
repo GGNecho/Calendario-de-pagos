@@ -154,3 +154,61 @@ input[type="range"].split:focus-visible{ outline:2px solid var(--accent); outlin
 .pooh-mini{ display:flex; flex-direction:column; align-items:center; gap:2px; }
 .pooh-mini img{ width:72px; height:72px; object-fit:cover; border-radius:50%; border:3px solid #F5C842; }
 @media (prefers-reduced-motion: reduce){ .sorpresa-pooh, .sorpresa-pooh.se-va{ animation:none; } }
+
+/* ---------- Lenguaje "limpio" (Calendario, Historial, Documentos) ----------
+   Gris claro con tarjetas blancas muy redondeadas y sin bordes, números en letra
+   de máquina, un solo color fuerte (--accent) para lo importante, hojas que suben
+   desde abajo y un botón + flotante. El Tablero (corcho) no lo usa. */
+body.limpio{
+  --paper:#F2F2F0; --surface:#FFFFFF; --surface-2:#F4F4F2; --border:#ECECE9; --pista:#E4E4E1;
+  --ink:#111111; --ink-soft:#5E5E5B; --ink-faint:#9A9A96;
+  --card-shadow:none; --radius-xl:24px; --radius-lg:18px; --radius-sm:12px;
+  --font-display:'Geist', 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body:'Geist', 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:'Geist Mono', 'IBM Plex Mono', ui-monospace, monospace;
+  background-image:none;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) body.limpio{
+  --paper:#000000; --surface:#1C1C1E; --surface-2:#2A2A2C; --border:#2E2E30; --pista:#2E2E31;
+  --ink:#F5F5F4; --ink-soft:#B4B4B0; --ink-faint:#77777A; } }
+:root[data-theme="dark"] body.limpio{
+  --paper:#000000; --surface:#1C1C1E; --surface-2:#2A2A2C; --border:#2E2E30; --pista:#2E2E31;
+  --ink:#F5F5F4; --ink-soft:#B4B4B0; --ink-faint:#77777A; }
+body.limpio .page{ gap:14px; padding-bottom:110px; }
+body.limpio h1{ font-weight:600; font-size:26px; letter-spacing:-0.02em; }
+body.limpio .card{ border:none; padding:18px; }
+body.limpio .card h2{ font-weight:600; font-size:17px; letter-spacing:-0.01em; }
+body.limpio .money{ font-family:var(--font-mono); font-weight:500; }
+body.limpio .tag{ border-radius:8px; }
+body.limpio .tema-mes{ color:var(--ink-faint); font-weight:500; }
+.numero-grande{ font:500 clamp(34px, 10vw, 44px) var(--font-mono); letter-spacing:-0.04em; line-height:1.05; margin:0; }
+.chip{ display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:8px; font:500 12.5px var(--font-mono); color:var(--ink-soft); background:var(--surface); }
+.chip.mal{ color:var(--critical); background:var(--critical-ink); }
+.chip.bien{ color:var(--ok); background:var(--ok-ink); }
+.redondo{ width:40px; height:40px; flex:0 0 auto; border-radius:50%; border:none; background:var(--surface); color:var(--ink); font-size:18px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+.redondo:hover{ background:var(--surface-2); }
+.redondo:focus-visible, .fab:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+.fab{ position:fixed; right:max(18px, env(safe-area-inset-right, 0px)); bottom:calc(20px + env(safe-area-inset-bottom, 0px)); z-index:40;
+  width:58px; height:58px; border-radius:50%; border:none; cursor:pointer; background:var(--ink); color:var(--paper);
+  font:300 34px/1 var(--font-body); box-shadow:0 8px 22px rgba(0,0,0,.25); display:flex; align-items:center; justify-content:center; }
+.btn-ancho{ width:100%; padding:14px; font-size:16px; border-radius:16px; margin-top:6px; }
+
+/* Ventanas como hojas que suben desde abajo, con su rayita y la ✕ redonda. */
+body.limpio .modal-backdrop{ align-items:flex-end; padding:0; background:rgba(0,0,0,.35); }
+body.limpio .modal{ position:relative; max-width:560px; border:none; border-radius:28px 28px 0 0; padding:30px 20px calc(22px + env(safe-area-inset-bottom, 0px));
+  background:var(--paper); max-height:92vh; overflow-y:auto; animation:sube .28s ease-out; }
+body.limpio .modal::before{ content:''; position:absolute; top:9px; left:50%; width:38px; height:5px; margin-left:-19px; border-radius:999px; background:var(--pista); }
+body.limpio .modal h2{ text-align:center; font-weight:600; font-size:18px; margin:4px 44px 14px; }
+body.limpio .modal .cerrar{ position:absolute; top:18px; right:16px; background:var(--surface); }
+body.limpio .modal .field input, body.limpio .modal .field select, body.limpio .modal textarea,
+body.limpio .field input[type="text"], body.limpio .field input[type="number"], body.limpio .field input[type="date"], body.limpio .field select{
+  background:var(--surface); border:none; border-radius:14px; padding:12px; }
+@media (min-width:720px){ body.limpio .modal-backdrop{ align-items:center; padding:24px; } body.limpio .modal{ border-radius:28px; } }
+@keyframes sube{ from{ transform:translateY(40px); opacity:.4 } to{ transform:none; opacity:1 } }
+@media (prefers-reduced-motion: reduce){ body.limpio .modal{ animation:none; } }
+body.limpio .summary, body.limpio .bucket, body.limpio .cal-card, body.limpio .tabs{ border:none; box-shadow:none; }
+body.limpio .sum-amount, body.limpio .row-amount, body.limpio .bucket-total{ font-family:var(--font-mono); font-weight:500; letter-spacing:-0.03em; }
+body.limpio .bucket-head h2, body.limpio .cal-label{ font-family:var(--font-body); font-weight:600; }
+body.limpio .cal-cell{ border-radius:12px; }
+.fab:disabled{ opacity:.4; cursor:default; }
+body.limpio:has(.modal-backdrop:not([hidden])) .fab{ display:none; }

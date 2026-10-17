@@ -19,7 +19,7 @@ Sin build ni dependencias locales: HTML, CSS y JavaScript sueltos. Firebase se c
 - `documentos.html`: pólizas, contratos, etc. (`documents`, foto en `docfotos`); sus vencimientos salen en la vista Mes.
 - `index.html`: Calendario de Pagos (quincena y calendario). Al marcar un pago como hecho, se guarda en el historial.
 - Notas (`notes`): se pegan en el Tablero; las terminadas (`status` history, calendar o done) se ven en el Historial. Una nota puede tener `tipo` (cita, cumple, otro; sin tipo = gasto o pendiente) y `fecha`: las que tienen fecha salen en la vista Mes (los cumpleaños cada año). Ver `TIPOS_NOTA` y `eventosDelMes()` en comun.js.
-- `historial.html`: lo ya pagado, total por mes, comparación con el mes anterior, gasto por categoría contra el presupuesto y las notas terminadas.
+- `historial.html`: el tablero de gastos del mes: barras por día, cuadritos de gastado, por día, pronóstico (hoja con la gráfica) y presupuesto (`config/budgets.total` más límites por categoría), dona de categorías, gastos del mes y notas terminadas.
 - Gastos compartidos: el reparto de cada pago (% de Nemecio) se elige en el formulario del pago en el Calendario y se guarda en `shared/splits`; el medidor (`Comun.medidorRepartoHTML`) sale en el Tablero y en la Quincena.
 - `acceso.js`: pantalla de entrada (Google o enlace por correo) y `window.requireAccess(onReady)`.
 - `comun.js`: `window.Comun` con el menú, el tema de cada mes (`TEMAS_DEL_MES`: color, saludo, fondo de emojis y la guirnalda dibujada en `ADORNOS`; `diasEspeciales()` para el calendario; es el único lugar donde se definen), `conectar()`, `guardarEnHistorial()`, `esCompartido()`, `CATEGORIAS`, `hoyISO()` `quien()`, las fechas de los pagos (`nextDue`, `nextPayday`, `statusForDue`, `Comun.fechas`), `marcarPagado`/`desmarcarPago`/`pagarConAviso`, los tickets (`guardarTicket`, `verTicket`, `elegirFoto`) y `aviso()`. El Calendario y el Tablero usan estas mismas funciones: no las copies en una página.
@@ -38,7 +38,7 @@ La app se puede instalar en el teléfono (`manifest.webmanifest`, `sw.js`, `icon
 - No cambies los nombres de colecciones ni de campos que ya existen: hay datos guardados con ellos. Si hace falta, lee ambos formatos (como hace `LLAVES_ANTERIORES`).
 - Guarda en el historial con `Comun.guardarEnHistorial`; con un `id` fijo no se duplican registros.
 - La configuración de Firebase en `comun.js` es pública por diseño (así funcionan las apps web); la seguridad la dan las reglas de Firestore.
-- Las cuatro páginas ya comparten un diseño (fuentes, `estilo.css`, color de acento por mes). Al cambiar o agregar algo, sigue ese diseño; la skill `frontend-design` es para pantallas nuevas o rediseños que el usuario pida, no para cambiar el estilo por tu cuenta.
+- Dos lenguajes de diseño: el Tablero es el corcho (sus propios estilos en `tablero.html`); el Calendario, Historial y Documentos usan el lenguaje "limpio" (`body.limpio` en `estilo.css`: gris claro, tarjetas blancas sin borde, números en Geist Mono, hojas que suben desde abajo, botón + flotante `.fab`). Una página nueva que no sea el Tablero lleva `class="limpio"`. Al cambiar algo, sigue el lenguaje de esa página; la skill `frontend-design` es para pantallas nuevas o rediseños que el usuario pida.
 - Las páginas se usan sobre todo en el teléfono: revisa que los cambios se vean bien en pantalla angosta y en modo oscuro.
 
 ## Probar cambios
