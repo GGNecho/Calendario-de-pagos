@@ -481,6 +481,140 @@
     messagingSenderId: "783588307830",
     appId: "1:783588307830:web:8b48c58d61b53cbb304057"
   };
+  // ---------- Sorpresas escondidas (tarrito de miel, abejas, huellitas y Pooh) ----------
+  // Salen al azar en cualquier página. Las fotos de Pooh las suben ustedes y se guardan
+  // privadas en Firestore (pooh_fotos/{id}; la lista de ids en config/pooh), nunca en el
+  // repositorio: el personaje tiene derechos y el repositorio es público.
+  const SVG_TARRO = `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 22h36c2 0 3 2 2 4l-4 26c-1 5-5 8-10 8H26c-5 0-9-3-10-8l-4-26c-1-2 0-4 2-4Z" fill="#C8873A" stroke="#7a4b1c" stroke-width="2"/>
+    <path d="M12 16h40v8H12z" fill="#E9A84A" stroke="#7a4b1c" stroke-width="2"/><path d="M18 24c0 6 4 6 4 0M30 24c0 9 4 9 4 0M42 24c0 5 4 5 4 0" fill="#F5C842"/>
+    <rect x="20" y="33" width="24" height="12" rx="2" fill="#FFF3D6" stroke="#7a4b1c" stroke-width="1.4"/>
+    <text x="32" y="42" text-anchor="middle" font-family="Georgia, serif" font-size="7.5" font-weight="700" fill="#7a2e12">HUNNY</text></svg>`;
+  const SVG_ABEJA = `<svg viewBox="0 0 40 30" aria-hidden="true"><ellipse cx="15" cy="9" rx="7" ry="9" fill="#dff1ff" opacity=".85" transform="rotate(-20 15 9)"/>
+    <ellipse cx="24" cy="8" rx="6" ry="8" fill="#dff1ff" opacity=".85" transform="rotate(20 24 8)"/>
+    <ellipse cx="20" cy="19" rx="12" ry="8" fill="#F5C518"/><path d="M15 12v14M21 11v16M27 12v14" stroke="#2d2414" stroke-width="3"/>
+    <circle cx="31" cy="17" r="1.6" fill="#2d2414"/><path d="M8 19l-5 1" stroke="#2d2414" stroke-width="2" stroke-linecap="round"/></svg>`;
+  const SVG_HUELLA = `<svg viewBox="0 0 30 30" aria-hidden="true" fill="#7a4b1c"><ellipse cx="15" cy="20" rx="7" ry="6"/><circle cx="6" cy="11" r="3"/><circle cx="12" cy="6.5" r="3"/><circle cx="18" cy="6.5" r="3"/><circle cx="24" cy="11" r="3"/></svg>`;
+  const tranquilo = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const azar = p => Math.random() < p;
+
+  function abejaVolando(){
+    if(tranquilo) return;
+    const b = document.createElement('div');
+    b.className = 'sorpresa-abeja';
+    b.innerHTML = SVG_ABEJA;
+    b.style.top = (15 + Math.random()*55) + 'vh';
+    if(azar(.5)) b.classList.add('al-reves');
+    document.body.appendChild(b);
+    b.addEventListener('animationend', ()=> b.remove());
+  }
+  function huellitas(){
+    if(tranquilo) return;
+    const fila = document.createElement('div');
+    fila.className = 'sorpresa-huellas';
+    fila.innerHTML = Array.from({length:9}, (_, i)=> `<span style="animation-delay:${i*0.45}s;left:${6 + i*10.5}%;${i%2 ? 'top:14px' : ''}">${SVG_HUELLA}</span>`).join('');
+    document.body.appendChild(fila);
+    setTimeout(()=> fila.remove(), 9000);
+  }
+  // Pooh asomándose por la esquina, en una burbujita, con una de sus fotos al azar.
+  async function asomarPooh(){
+    try{
+      const db = conectar();
+      const meta = await db.doc('config/pooh').get();
+      const ids = (meta.exists && meta.data().ids) || [];
+      if(!ids.length) return false;
+      const s = await db.collection('pooh_fotos').doc(ids[Math.floor(Math.random()*ids.length)]).get();
+      if(!s.exists) return false;
+      const p = document.createElement('button');
+      p.type = 'button';
+      p.className = 'sorpresa-pooh' + (azar(.5) ? ' derecha' : '');
+      p.setAttribute('aria-label', 'Pooh se asomó. Toca para que se esconda.');
+      p.innerHTML = `<img src="${s.data().data}" alt="">`;
+      p.addEventListener('click', ()=> p.remove());
+      document.body.appendChild(p);
+      setTimeout(()=>{ p.classList.add('se-va'); setTimeout(()=> p.remove(), 700); }, 6500);
+      return true;
+    }catch(_){ return false; }
+  }
+  function tarroEscondido(){
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 'sorpresa-tarro';
+    t.setAttribute('aria-label', 'Un tarrito de miel');
+    t.innerHTML = SVG_TARRO;
+    const lugares = [{left:'6px', bottom:'8px'}, {right:'6px', bottom:'8px'}, {right:'4px', top:'40vh'}, {left:'4px', top:'58vh'}];
+    Object.assign(t.style, lugares[Math.floor(Math.random()*lugares.length)]);
+    t.addEventListener('click', ()=>{
+      abejaVolando();
+      setTimeout(abejaVolando, 400);
+      asomarPooh();
+      t.remove();
+    });
+    document.body.appendChild(t);
+  }
+  function sorpresas(){
+    if(!document.querySelector('.hero')) return;
+    if(azar(.35)) tarroEscondido();
+    if(azar(.25)) setTimeout(abejaVolando, 4000 + Math.random()*20000);
+    if(azar(.15)) setTimeout(huellitas, 6000 + Math.random()*25000);
+    // Pooh también se asoma solo, de vez en cuando (cuando ya entraron).
+    if(azar(.12)) setTimeout(()=>{ if(firebase.auth && firebase.auth().currentUser) asomarPooh(); }, 15000 + Math.random()*40000);
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sorpresas); else sorpresas();
+
+  // Ventana para subir o quitar las fotos de Pooh.
+  let ventanaPooh = null;
+  async function pintarFotosPooh(){
+    const db = conectar(), caja = ventanaPooh.querySelector('[data-fotos]');
+    const meta = await db.doc('config/pooh').get().catch(()=>null);
+    const ids = (meta && meta.exists && meta.data().ids) || [];
+    if(!ids.length){ caja.innerHTML = '<p class="muted">Todavía no hay fotos. Suban las que quieran que se asomen.</p>'; return; }
+    const fotos = await Promise.all(ids.map(id=> db.collection('pooh_fotos').doc(id).get().catch(()=>null)));
+    caja.innerHTML = fotos.map((s, i)=> s && s.exists ? `<span class="pooh-mini"><img src="${s.data().data}" alt=""><button type="button" class="btn-link" data-quitar="${ids[i]}">Quitar</button></span>` : '').join('');
+  }
+  function abrirSorpresas(){
+    if(!ventanaPooh){
+      ventanaPooh = document.createElement('div');
+      ventanaPooh.className = 'modal-backdrop';
+      ventanaPooh.hidden = true;
+      ventanaPooh.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="poohTitulo">
+        <h2 id="poohTitulo">🍯 Sorpresas</h2>
+        <p class="muted">Fotos de Pooh que se asoman al azar o al encontrar el tarrito de miel. Solo las ven ustedes dos.</p>
+        <div class="pooh-fotos" data-fotos></div>
+        <p class="muted" data-estado aria-live="polite"></p>
+        <div class="modal-actions"><label class="btn">Subir fotos<input type="file" accept="image/*" multiple hidden data-subir></label>
+          <button type="button" class="btn btn-primary" data-cerrar>Listo</button></div>
+      </div>`;
+      document.body.appendChild(ventanaPooh);
+      const estado = t => { ventanaPooh.querySelector('[data-estado]').textContent = t || ''; };
+      ventanaPooh.addEventListener('click', async e=>{
+        if(e.target === ventanaPooh || e.target.closest('[data-cerrar]')){ ventanaPooh.hidden = true; return; }
+        const q = e.target.closest('[data-quitar]');
+        if(!q) return;
+        const db = conectar();
+        await db.doc('config/pooh').set({ids: firebase.firestore.FieldValue.arrayRemove(q.dataset.quitar)}, {merge:true});
+        db.collection('pooh_fotos').doc(q.dataset.quitar).delete().catch(()=>{});
+        pintarFotosPooh();
+      });
+      ventanaPooh.querySelector('[data-subir]').addEventListener('change', async e=>{
+        const files = [...(e.target.files || [])]; e.target.value = '';
+        const db = conectar();
+        for(const [i, f] of files.entries()){
+          estado(`Guardando ${i+1} de ${files.length}…`);
+          try{
+            const {data} = await prepararImagen(f);
+            const id = db.collection('pooh_fotos').doc().id;
+            await db.collection('pooh_fotos').doc(id).set({data});
+            await db.doc('config/pooh').set({ids: firebase.firestore.FieldValue.arrayUnion(id)}, {merge:true});
+          }catch(_){ estado('Una foto no se pudo guardar.'); }
+        }
+        estado(files.length ? 'Listo.' : '');
+        pintarFotosPooh();
+      });
+    }
+    ventanaPooh.hidden = false;
+    pintarFotosPooh();
+  }
+
   // ---------- Avisos en el teléfono ----------
   // La llave pública de "Certificados push web" (Firebase > Configuración > Cloud Messaging).
   // Es pública por diseño: solo identifica a la app; mandar avisos requiere la llave privada de servicio.
@@ -538,5 +672,5 @@
     nextDue, prevOccurrence, nextPayday, statusForDue, marcarPagado, desmarcarPago, pagarConAviso,
     elegirFoto, guardarTicket, borrarTicket, verTicket, aviso,
     TIPOS_NOTA, tipoDe, esFecha, eventosDelMes, fechaDeNota, opcionesTipoNota, documentosComoFechas, enlaceCalendario, prepararImagen,
-    activarAvisos, avisosActivos };
+    activarAvisos, avisosActivos, abrirSorpresas };
 })();

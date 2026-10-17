@@ -130,3 +130,27 @@ input[type="range"].split::-moz-range-thumb{ width:18px; height:18px; border-rad
 input[type="range"].split:focus-visible{ outline:2px solid var(--accent); outline-offset:4px; border-radius:999px; }
 .split-txt{ margin:4px 0 0; font:600 12.5px var(--font-mono); }
 .split-txt .a{ color:var(--person-a); } .split-txt .b{ color:var(--person-b); }
+
+/* Sorpresas escondidas (ver comun.js): tarrito de miel, abejas, huellitas y Pooh asomándose. */
+.sorpresa-tarro{ position:fixed; z-index:45; width:38px; height:38px; padding:0; border:none; background:none; cursor:pointer; opacity:.9; transform:rotate(-8deg); }
+.sorpresa-tarro:hover{ transform:rotate(4deg) scale(1.1); }
+.sorpresa-tarro svg{ width:100%; height:100%; display:block; filter:drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
+.sorpresa-abeja{ position:fixed; left:-50px; z-index:46; width:38px; pointer-events:none; animation:abeja 7s ease-in-out forwards; }
+.sorpresa-abeja.al-reves{ left:auto; right:-50px; animation-name:abeja-reves; }
+.sorpresa-abeja.al-reves svg{ transform:scaleX(-1); }
+@keyframes abeja{ 0%{ transform:translate(0,0) } 25%{ transform:translate(30vw,-40px) } 50%{ transform:translate(55vw,30px) } 75%{ transform:translate(80vw,-20px) } 100%{ transform:translate(110vw,10px) } }
+@keyframes abeja-reves{ 0%{ transform:translate(0,0) } 25%{ transform:translate(-30vw,-40px) } 50%{ transform:translate(-55vw,30px) } 75%{ transform:translate(-80vw,-20px) } 100%{ transform:translate(-110vw,10px) } }
+.sorpresa-huellas{ position:fixed; left:0; right:0; bottom:10px; height:46px; z-index:44; pointer-events:none; }
+.sorpresa-huellas span{ position:absolute; width:22px; opacity:0; transform:rotate(90deg); animation:huella 4.5s ease forwards; }
+@keyframes huella{ 0%{ opacity:0 } 15%{ opacity:.55 } 70%{ opacity:.55 } 100%{ opacity:0 } }
+.sorpresa-pooh{ position:fixed; left:-10px; bottom:-10px; z-index:47; width:110px; height:110px; padding:0; border-radius:50%; overflow:hidden; cursor:pointer;
+  border:4px solid #F5C842; background:#FFF3D6; box-shadow:0 6px 18px rgba(0,0,0,.3); animation:asoma .6s ease-out both; }
+.sorpresa-pooh.derecha{ left:auto; right:-10px; }
+.sorpresa-pooh img{ width:100%; height:100%; object-fit:cover; display:block; }
+.sorpresa-pooh.se-va{ animation:esconde .6s ease-in forwards; }
+@keyframes asoma{ from{ transform:translateY(120%) rotate(-12deg) } to{ transform:translateY(0) rotate(-6deg) } }
+@keyframes esconde{ to{ transform:translateY(130%) rotate(-12deg) } }
+.pooh-fotos{ display:flex; flex-wrap:wrap; gap:12px; margin:12px 0; }
+.pooh-mini{ display:flex; flex-direction:column; align-items:center; gap:2px; }
+.pooh-mini img{ width:72px; height:72px; object-fit:cover; border-radius:50%; border:3px solid #F5C842; }
+@media (prefers-reduced-motion: reduce){ .sorpresa-pooh, .sorpresa-pooh.se-va{ animation:none; } }

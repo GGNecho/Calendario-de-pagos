@@ -65,6 +65,10 @@ body .page.ancho{ max-width:1600px; }
 .nota.de-a{ background:var(--postit-a); }
 .nota.de-b{ background:var(--postit-b); }
 .nota-txt{ white-space:pre-wrap; overflow-wrap:anywhere; flex:1; }
+/* A veces una nota trae un globo azul amarrado a su tachuela. */
+.nota.con-globo::after{ content:""; position:absolute; top:-74px; left:calc(50% - 4px); width:34px; height:72px; pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 34 72%27%3E%3Cpath d=%27M17 42c-2 8 3 14-1 30%27 fill=%27none%27 stroke=%27%23555%27 stroke-width=%271.2%27/%3E%3Cellipse cx=%2717%27 cy=%2720%27 rx=%2714%27 ry=%2718%27 fill=%27%234D8FE0%27/%3E%3Cellipse cx=%2712%27 cy=%2713%27 rx=%274%27 ry=%276%27 fill=%27%23fff%27 opacity=%27.45%27/%3E%3Cpath d=%27M14 38l3 4 3-4z%27 fill=%27%233A72BC%27/%3E%3C/svg%3E") no-repeat center/contain;
+  transform:rotate(-8deg); transform-origin:bottom center; }
 .nota-pie{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; font:600 12px var(--font-body); color:#5b4a2e; }
 .nota-monto{ font:700 18px var(--mano); }
 .nota-fecha{ font:700 13px var(--font-body); color:#7a2e12; }
@@ -148,6 +152,7 @@ body .page.ancho{ max-width:1600px; }
     <h1>Tablero</h1>
     <p>Lo de los dos en un solo lugar: péguenle notas, citas y cumpleaños, apunten el súper y vean qué falta pagar.</p>
     <button type="button" class="btn btn-small avisos-btn" id="avisosBtn">🔔 Activar avisos</button>
+    <button type="button" class="btn btn-small avisos-btn" id="sorpresasBtn" aria-label="Fotos sorpresa">🍯</button>
   </header>
 
   <section class="marco">
@@ -261,7 +266,7 @@ body .page.ancho{ max-width:1600px; }
   const $ = id => document.getElementById(id);
   const st = {notes:null, payments:null, payroll:null, history:null, shopping:null, splits:{}};
   const libres = window.matchMedia('(min-width:960px)');
-  let notaEditando = null, notaGasto = null;
+  let notaEditando = null, notaGasto = null, globoEn;
 
   function escapeHTML(t){ return String(t).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function fecha(o){ return o.d + ' ' + MES[o.m]; }
@@ -291,6 +296,8 @@ body .page.ancho{ max-width:1600px; }
     caja.classList.toggle('libres', sueltas);
     $('ayudaNotas').textContent = sueltas ? 'Arrástrenlas para acomodarlas; tóquenlas para cambiarlas.' : 'Toca una nota para cambiarla.';
     if(!open.length){ caja.style.height = ''; caja.innerHTML = '<p class="vacio-corcho">El corcho está vacío. Peguen aquí lo que haya que hacer, pagar o recordar.</p>'; return; }
+    // Sorpresa: a veces (al azar, una vez por visita) una nota trae un globo.
+    if(globoEn === undefined) globoEn = Math.random() < 0.3 ? open[Math.floor(Math.random()*open.length)].id : null;
     const ancho = caja.clientWidth || 800;
     const cols = Math.max(1, Math.floor((ancho + 14) / (ANCHO_NOTA + 18)));
     let alto = 0, libre = 0;
@@ -306,7 +313,7 @@ body .page.ancho{ max-width:1600px; }
         pos = `left:${Math.round(x)}px;top:${Math.round(y)}px;`;
       }
       const t = Comun.esFecha(n) ? `<span class="nota-fecha">${Comun.fechaDeNota(n)}</span>` : '';
-      return `<article class="nota tachuela ${claseDe(n.by)}" data-nota="${n.id}" tabindex="0" style="${pos}--giro:${giro}deg;--pin:${PINES[hash(n.id) % PINES.length]}" aria-label="Nota: ${escapeHTML(n.text)}">
+      return `<article class="nota tachuela ${claseDe(n.by)}${n.id === globoEn ? " con-globo" : ""}" data-nota="${n.id}" tabindex="0" style="${pos}--giro:${giro}deg;--pin:${PINES[hash(n.id) % PINES.length]}" aria-label="Nota: ${escapeHTML(n.text)}">
         <div class="nota-txt">${escapeHTML(n.text)}</div>
         ${n.amount != null ? `<div class="nota-monto">${money.format(n.amount)}</div>` : ''}
         <div class="nota-pie">${t}${Comun.quien(n.by)}</div>
@@ -558,6 +565,7 @@ body .page.ancho{ max-width:1600px; }
     'sin-permiso': 'No diste permiso para los avisos. Puedes activarlo en los ajustes de notificaciones del teléfono.',
   };
   function marcarAvisos(){ $('avisosBtn').textContent = '🔔 Avisos activados'; $('avisosBtn').disabled = true; }
+  $('sorpresasBtn').addEventListener('click', ()=> Comun.abrirSorpresas());
   $('avisosBtn').addEventListener('click', ()=>{
     Comun.activarAvisos(true).then(()=>{ marcarAvisos(); Comun.aviso('Listo: cada mañana les llega un aviso con lo que vence.'); })
       .catch(e=> Comun.aviso(MOTIVO[e && e.message] || 'No se pudieron activar los avisos. Intenta de nuevo.'));
